@@ -1,45 +1,56 @@
 {
-   "checksum": "14e6e4d18a97cb434c8860029da8b898",
+   "checksum": "0361f5294263b1dd199490c2f8f1c822",
    "roots": {
       "bookmark_bar": {
          "children": [ {
             "date_added": "13293026878680661",
             "guid": "cddfd431-27ad-4444-b5e3-d1af56e56907",
-            "id": "4",
+            "id": "2",
             "name": "Vulnerable OIDC Client",
             "type": "url",
-            "url": "https://honest-sp.com/oidc_sp/"
+            "url": "https://sp.localhost/oidc_sp/"
          }, {
             "date_added": "13293027126541928",
             "guid": "10f8bf82-416b-4f73-b871-9e6617b3a2c9",
-            "id": "5",
+            "id": "3",
             "name": "Vulnerable OIDC IdP",
             "type": "url",
-            "url": "https://honest-sp.com/oidc_idp/authorize/index.xhtml"
+            "url": "https://idp.localhost/oidc_idp/authorize/index.xhtml"
          }, {
             "date_added": "13293025806675806",
             "guid": "0ed257f8-afc0-4d89-b982-4a0878e165a9",
-            "id": "6",
+            "id": "4",
             "name": "Vulnerable XML Service",
             "type": "url",
-            "url": "https://honest-sp.com/xml-sec/"
+            "url": "https://xml.localhost/xml-sec/"
          }, {
             "date_added": "13293027484054213",
             "guid": "48c75755-b868-4a06-96ed-0b12809cdca4",
-            "id": "7",
+            "id": "5",
             "name": "Vulnerable SAML SP",
             "type": "url",
-            "url": "https://honest-sp.com/sp/"
+            "url": "https://sp.localhost/sp/"
          }, {
             "date_added": "13293027534636805",
             "guid": "ccc8acf2-ca71-425b-9a32-785105864c30",
-            "id": "8",
+            "id": "6",
             "name": "Vulnerable SAML IdP",
             "type": "url",
-            "url": "https://honest-idp.com/idp/saml"
+            "url": "https://idp.localhost/idp/saml"
+         }, {
+            "date_added": "13402136184683396",
+            "date_last_used": "0",
+            "guid": "19966067-d2a1-4796-9488-63f5894a39bf",
+            "id": "10",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "JWTF – JSON Web Token Forgery – developed by Hackmanit",
+            "type": "url",
+            "url": "https://jwt.wtf/"
          } ],
          "date_added": "13293025612575646",
-         "date_modified": "13293027644421391",
+         "date_modified": "13402136184683396",
          "guid": "0bc5d13f-2cba-5d74-951f-3f233fe6c908",
          "id": "1",
          "name": "Bookmarks bar",
@@ -50,7 +61,7 @@
          "date_added": "13293025612575647",
          "date_modified": "0",
          "guid": "82b081ec-3dd3-529c-8475-ab6c344590dd",
-         "id": "2",
+         "id": "7",
          "name": "Other bookmarks",
          "type": "folder"
       },
@@ -59,7 +70,7 @@
          "date_added": "13293025612575648",
          "date_modified": "0",
          "guid": "4cf2e351-0e85-532b-bb37-df045d8f8d0f",
-         "id": "3",
+         "id": "8",
          "name": "Mobile bookmarks",
          "type": "folder"
       }
