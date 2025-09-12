@@ -3,7 +3,7 @@
   set_fact:
     docker_compose_pkg: "{{ 'docker-compose' if ansible_distribution_version == '22.04' else 'docker-compose-v2' }}"
     docker_compose: "{{ 'docker-compose' if ansible_distribution_version == '22.04' else 'docker compose' }}"
-  when: 
+  when:
     - ansible_os_family == "Debian"
     - ansible_distribution == "Ubuntu"
 
@@ -32,21 +32,21 @@
   get_url:
     url: "https://github.com/docker/compose/releases/download/v2.15.1/docker-compose-linux-{{ ansible_architecture }}"
     dest: "/usr/local/bin/docker-compose"
-    mode: '0755'
-  when: 
+    mode: "0755"
+  when:
     - ansible_os_family == "Debian"
     - ansible_distribution == "Kali"
 
 - name: Set Docker Compose package and command (Kali)
   set_fact:
     docker_compose: "docker-compose"
-  when: 
+  when:
     - ansible_os_family == "Debian"
     - ansible_distribution == "Kali"
 
-- name:  Adding user '{{ vm_user }}' to group docker
+- name: Adding user '{{ vm_user }}' to group docker
   user:
-    name: '{{ vm_user }}'
+    name: "{{ vm_user }}"
     groups: docker
     append: yes
 
@@ -57,29 +57,29 @@
       {{ item.ip }} {{ item.name }}
     marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.name }}"
   loop:
-  - { name: attacker.localhost, ip: 127.0.0.1 }
-  - { name: e-hacking.localhost, ip: 127.0.0.1 }
-  - { name: idp.localhost, ip: 127.0.0.1 }
-  - { name: json.localhost, ip: 127.0.0.1 }
-  - { name: rest.localhost, ip: 127.0.0.1 }
-  - { name: rs.localhost, ip: 127.0.0.1 }
-  - { name: soap.localhost, ip: 127.0.0.1 }
-  - { name: sp.localhost, ip: 127.0.0.1 }
-  - { name: spa.localhost, ip: 127.0.0.1 }
-  - { name: step-ca.localhost, ip: 127.0.0.1 }
-  - { name: websec.localhost, ip: 127.0.0.1 }
-  - { name: www.e-hacking.localhost, ip: 127.0.0.1 }
-  - { name: xml.localhost, ip: 127.0.0.1 }
+    - { name: attacker.localhost, ip: 127.0.0.1 }
+    - { name: e-hacking.localhost, ip: 127.0.0.1 }
+    - { name: idp.localhost, ip: 127.0.0.1 }
+    - { name: json.localhost, ip: 127.0.0.1 }
+    - { name: rest.localhost, ip: 127.0.0.1 }
+    - { name: rs.localhost, ip: 127.0.0.1 }
+    - { name: soap.localhost, ip: 127.0.0.1 }
+    - { name: sp.localhost, ip: 127.0.0.1 }
+    - { name: spa.localhost, ip: 127.0.0.1 }
+    - { name: step-ca.localhost, ip: 127.0.0.1 }
+    - { name: websec.localhost, ip: 127.0.0.1 }
+    - { name: www.e-hacking.localhost, ip: 127.0.0.1 }
+    - { name: xml.localhost, ip: 127.0.0.1 }
   tags: eHacking_vm
 
 - name: Create Application Launcher from template
   ansible.builtin.template:
-    src: '{{ config_dir }}/templates/applications/starter.desktop.j2'
+    src: "{{ config_dir }}/templates/applications/starter.desktop.j2"
     remote_src: yes
     dest: "{{ item }}"
     owner: "{{ vm_user }}"
     group: "{{ vm_user_details.group }}"
-    mode: '0755'
+    mode: "0755"
   loop:
     - "{{ vm_user_details.home }}/Desktop/starter.desktop"
     - "{{ vm_user_details.home }}/.local/share/applications/starter.desktop"
@@ -110,23 +110,29 @@
 #     source: pull
 #   tags: eHacking_vm
 
-- name: Pull Docker image (without ansible-community-docker extension)
+- name: Pull Docker image and Copy ehacking-ca.crt to Download dir
   ansible.builtin.command:
-    cmd: "{{ docker_compose }} pull --quiet"
+    cmd: |
+      {{ docker_compose }} pull --quiet
+      {{ docker_compose }} up -d step-ca
+      sleep 3
+      {{ docker_compose }} exec step-ca cat /home/step/step-ca/certs/root_ca.crt > {{ vm_user_details.home }}/Downloads/ehacking-ca.crt
+      {{ docker_compose }} stop step-ca
+    creates: "{{ vm_user_details.home }}/Downloads/ehacking-ca.crt"
     chdir: "{{ vm_user_details.home }}/.hidden"
   become_user: "{{ vm_user }}"
   tags: eHacking_vm
 
-# - name: Copy Root CA into System Trust Store
-#   ansible.builtin.copy:
-#     src: "{{ config_dir }}/ehacking-ca.cert.pem"
-#     remote_src: yes
-#     dest: /usr/local/share/ca-certificates/ehacking-ca.crt
-#     owner: root
-#     group: root
-#     mode: '0644'
-#   notify:
-#     - update CA certificates
-#     - chromium update certificates
-#     - firefox update certificates
-#   tags: eHacking_vm
+- name: Copy Root CA into System Trust Store
+  ansible.builtin.copy:
+    src: "{{ vm_user_details.home }}/Downloads/ehacking-ca.crt"
+    remote_src: yes
+    dest: /usr/local/share/ca-certificates/ehacking-ca.crt
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - update CA certificates
+    - chromium update certificates
+    - firefox update certificates
+  tags: eHacking_vm
