@@ -50,7 +50,7 @@
 - name: Create Firefox profiles.ini
   ansible.builtin.template:
     src: profiles.ini.j2
-    dest: "{{ firefox_profile_directory }}/profiles.ini"
+    dest: "{{ firefox_mozilla_directory }}/firefox/profiles.ini"
     owner: "{{ vm_user }}"
     group: "{{ vm_user_details.group }}"
     mode: '0644'
