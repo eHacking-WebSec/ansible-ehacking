@@ -95,14 +95,14 @@
 
 - name: Activate Extensions
   ansible.builtin.template:
-    src: "{{ item }}"
+    src: "{{ item }}.j2"
     dest: "{{ firefox_profile_directory }}/{{ item }}"
     owner: "{{ vm_user }}"
     group: "{{ vm_user_details.group }}"
     mode: '0644'
   loop:
-    - "extensions.json.j2"
-    - "extension-preferences.json.j2"
+    - "extensions.json"
+    - "extension-preferences.json"
   tags: firefox
 
 - name: Create the Firefox certificate database if it does not exist
