@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 32,
+  "addons": [
+    {
+      "id": "foxyproxy@eric.h.jung",
+      "version": "latest",
+      "active": true,
+      "bootstrap": true,
+      "type": "extension",
+      "path": "foxyproxy@eric.h.jung.xpi",
+      "defaultLocale": {
+        "name": "FoxyProxy Standard",
+        "description": ""
+      }
+    }
+  ]
+}

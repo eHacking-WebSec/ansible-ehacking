@@ -93,6 +93,18 @@
     mode: '0644'
   tags: firefox
 
+- name: Activate Extensions
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ firefox_profile_directory }}/{{ item }}"
+    owner: "{{ vm_user }}"
+    group: "{{ vm_user_details.group }}"
+    mode: '0644'
+  loop:
+    - "extensions.json"
+    - "extension-preferences.json"
+  tags: firefox
+
 - name: Create the Firefox certificate database if it does not exist
   ansible.builtin.command: >
     bash -c "certutil -N -d sql:{{ firefox_profile_directory }} -f /dev/null"
