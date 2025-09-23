@@ -119,3 +119,8 @@
     group: "{{ vm_user_details.group }}"
     recurse: yes
   tags: firefox
+
+  # TODOs:
+  # - Bookmarks import not working
+  # - FoxyProxy not pinned in toolbar
+  # - FoxyProxy has no config for burpsuite
