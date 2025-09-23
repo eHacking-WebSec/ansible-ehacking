@@ -36,35 +36,65 @@
     - "{{ firefox_mozilla_directory }}/certificates"
   tags: firefox
 
-- name: Extract configuration
-  ansible.builtin.unarchive:
-    src: "{{ config_dir }}/firefox.tar.gz"
-    dest: "{{ firefox_mozilla_directory }}/"
-    remote_src: yes
-    creates: "{{ firefox_profile_directory }}"
+- name: Create Firefox Profile Directory
+  ansible.builtin.file:
+    path: "{{ firefox_profile_directory }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ vm_user }}"
+    group: "{{ vm_user_details.group }}"
   tags: firefox
 
-- name: Setz owner
+- name: Create Firefox profiles.ini
+  ansible.builtin.template:
+    src: profiles.ini.j2
+    dest: "{{ firefox_mozilla_directory }}/profiles.ini"
+    owner: "{{ vm_user }}"
+    group: "{{ vm_user_details.group }}"
+    mode: '0644'
+  tags: firefox
+
+- name: Copy bookmarks backup
+  ansible.builtin.copy:
+    src: bookmarks.json
+    dest: "{{ firefox_profile_directory }}/bookmarkbackups/bookmarks.json"
+    owner: "{{ vm_user }}"
+    group: "{{ vm_user_details.group }}"
+    mode: '0644'
+  tags: firefox
+
+- name: Write about:config-Prefs in user.js
+  ansible.builtin.template:
+    src: user.js.j2
+    dest: "{{ firefox_profile_directory }}/user.js"
+    owner: "{{ vm_user }}"
+    group: "{{ vm_user_details.group }}"
+    mode: '0644'
+  tags: firefox
+
+- name: Downoad FoxyProxy
+  ansible.builtin.get_url:
+    url: https://addons.mozilla.org/firefox/downloads/latest/foxyproxy-standard/addon-latest.xpi
+    dest: "{{ role_path }}/files/foxyproxy.xpi"
+    mode: '0644'
+    owner: "{{ vm_user }}"
+    group: "{{ vm_user_details.group }}"
+    force: yes
+  tags: firefox
+
+- name: Install FoxyProxy-XPI
+  ansible.builtin.copy:
+    src: foxyproxy.xpi
+    dest: "{{ firefox_profile_directory }}/extensions/foxyproxy@eric.h.jung.xpi"
+    owner: "{{ vm_user }}"
+    group: "{{ vm_user_details.group }}"
+    mode: '0644'
+  tags: firefox
+
+- name: Set possessor rights recursively.
   ansible.builtin.file:
-    path: "{{ firefox_mozilla_directory }}"
+    path: "{{ firefox_profile_directory }}"
     owner: "{{ vm_user }}"
     group: "{{ vm_user_details.group }}"
     recurse: yes
   tags: firefox
-
-- name: Create the Firefox certificate database if it does not exist
-  ansible.builtin.command: >
-    bash -c "certutil -N -d sql:{{ firefox_profile_directory }} -f /dev/null"
-  args:
-    creates: "{{ firefox_profile_directory }}/cert9.db"
-  tags: firefox
-
-# - name: Create policies.json from template
-#   ansible.builtin.template:
-#     src: "{{ config_dir }}/templates/etc_firefox_policies/policies.json.j2"
-#     remote_src: yes
-#     dest: "/etc/firefox/policies/policies.json"
-#     mode: '0644'
-#     owner: "root"
-#     group: "root"
-#   tags: firefox

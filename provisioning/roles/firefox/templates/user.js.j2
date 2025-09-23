@@ -1,0 +1,9 @@
+user_pref("network.captive-portal-service.enabled", false);
+user_pref("toolkit.telemetry.enabled", false);
+user_pref("datareporting.healthreport.uploadEnabled", false);
+user_pref("network.proxy.allow_hijacking_localhost", true);
+user_pref("extensions.foxyproxy.proxies", JSON.stringify([{  
+  \"title\":\"BurpSuite\",\"mode\":\"manual\",\"pattern\":\"*\",
+  \"proxyDetails\":{\"proxyType\":\"http\",\"httpProxy\":\"127.0.0.1\",\"httpPort\":8080}
+}]));
+user_pref("extensions.foxyproxy.activeMode","BurpSuite");

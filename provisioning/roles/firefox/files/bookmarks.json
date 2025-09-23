@@ -1,0 +1,251 @@
+{
+  "guid": "root________",
+  "title": "",
+  "index": 0,
+  "dateAdded": 1649065015562000,
+  "lastModified": 1757582643176000,
+  "id": 1,
+  "typeCode": 2,
+  "type": "text/x-moz-place-container",
+  "root": "placesRoot",
+  "children": [
+    {
+      "guid": "menu________",
+      "title": "menu",
+      "index": 0,
+      "dateAdded": 1649065015562000,
+      "lastModified": 1649065213162000,
+      "id": 2,
+      "typeCode": 2,
+      "type": "text/x-moz-place-container",
+      "root": "bookmarksMenuFolder"
+    },
+    {
+      "guid": "toolbar_____",
+      "title": "toolbar",
+      "index": 1,
+      "dateAdded": 1649065015562000,
+      "lastModified": 1672656210318000,
+      "id": 3,
+      "typeCode": 2,
+      "type": "text/x-moz-place-container",
+      "root": "toolbarFolder",
+      "children": [
+        {
+          "guid": "mTWZQxJWPZRC",
+          "title": "Vulnerable OIDC Client",
+          "index": 0,
+          "dateAdded": 1648553278000000,
+          "lastModified": 1757582864019000,
+          "id": 12,
+          "typeCode": 1,
+          "type": "text/x-moz-place",
+          "uri": "https://sp.localhost/oidc_sp/"
+        },
+        {
+          "guid": "TDfSVvUCOfE5",
+          "title": "Vulnerable OIDC IdP",
+          "index": 1,
+          "dateAdded": 1648553526000000,
+          "lastModified": 1757582877377000,
+          "id": 13,
+          "typeCode": 1,
+          "type": "text/x-moz-place",
+          "uri": "https://idp.localhost/oidc_idp/authorize/index.xhtml"
+        },
+        {
+          "guid": "wGJi5O7ADg_G",
+          "title": "",
+          "index": 2,
+          "dateAdded": 1651560893135000,
+          "lastModified": 1651560916176000,
+          "id": 37,
+          "typeCode": 3,
+          "type": "text/x-moz-place-separator"
+        },
+        {
+          "guid": "Iu5N5mAZJ-zA",
+          "title": "Vulnerable JSON Service",
+          "index": 3,
+          "dateAdded": 1672656206914000,
+          "lastModified": 1757582888270000,
+          "id": 39,
+          "typeCode": 1,
+          "type": "text/x-moz-place",
+          "uri": "https://json.localhost/json-sec/sigenc/"
+        },
+        {
+          "guid": "15oYGyC5Of1s",
+          "title": "Vulnerable XML Service",
+          "index": 4,
+          "dateAdded": 1648552206000000,
+          "lastModified": 1757582904775000,
+          "id": 9,
+          "typeCode": 1,
+          "type": "text/x-moz-place",
+          "uri": "https://xml.localhost/xml-sec/"
+        },
+        {
+          "guid": "-ZlivT0YZrRS",
+          "title": "",
+          "index": 5,
+          "dateAdded": 1651560897916000,
+          "lastModified": 1651560918575000,
+          "id": 38,
+          "typeCode": 3,
+          "type": "text/x-moz-place-separator"
+        },
+        {
+          "guid": "bYTxWwciue7Z",
+          "title": "Vulnerable SAML SP",
+          "index": 6,
+          "dateAdded": 1648553884000000,
+          "lastModified": 1757582917319000,
+          "id": 23,
+          "typeCode": 1,
+          "type": "text/x-moz-place",
+          "uri": "https://sp.localhost/sp/"
+        },
+        {
+          "guid": "Kb52wvpVESvt",
+          "title": "Vulnerable SAML IdP",
+          "index": 7,
+          "dateAdded": 1648553934000000,
+          "lastModified": 1757582930237000,
+          "id": 24,
+          "typeCode": 1,
+          "type": "text/x-moz-place",
+          "uri": "https://idp.localhost/idp/saml"
+        }
+      ]
+    },
+    {
+      "guid": "unfiled_____",
+      "title": "unfiled",
+      "index": 3,
+      "dateAdded": 1649065015562000,
+      "lastModified": 1757582643176000,
+      "id": 5,
+      "typeCode": 2,
+      "type": "text/x-moz-place-container",
+      "root": "unfiledBookmarksFolder",
+      "children": [
+        {
+          "guid": "_5upygww3goE",
+          "title": "JWT Decoder / Attack Tool",
+          "index": 0,
+          "dateAdded": 1757582637531000,
+          "lastModified": 1757582643176000,
+          "id": 40,
+          "typeCode": 1,
+          "tags": "JSON,JWE,JWT,Token",
+          "iconUri": "https://jwt.wtf/img/favicon.ico",
+          "type": "text/x-moz-place",
+          "uri": "https://jwt.wtf/"
+        },
+        {
+          "guid": "yLnk9MtFUUBK",
+          "title": "JWT Decoder (2)",
+          "index": 1,
+          "dateAdded": 1651473158740000,
+          "lastModified": 1757582593160000,
+          "id": 32,
+          "typeCode": 1,
+          "type": "text/x-moz-place",
+          "uri": "https://irrte.ch/jwt-js-decode/index.html"
+        },
+        {
+          "guid": "r8lir5tjNVWo",
+          "title": "JWT Decoder (3)",
+          "index": 2,
+          "dateAdded": 1651473252602000,
+          "lastModified": 1757582596192000,
+          "id": 34,
+          "typeCode": 1,
+          "iconUri": "https://jwt.io/img/favicon/android-icon-192x192.png",
+          "type": "text/x-moz-place",
+          "uri": "https://jwt.io/"
+        },
+        {
+          "guid": "Dcl8fwB5unlv",
+          "title": "JWK to PEM Converter",
+          "index": 3,
+          "dateAdded": 1651473096796000,
+          "lastModified": 1651560718011000,
+          "id": 30,
+          "typeCode": 1,
+          "type": "text/x-moz-place",
+          "uri": "https://8gwifi.org/jwkconvertfunctions.jsp"
+        },
+        {
+          "guid": "sEJJiZ_E1zjW",
+          "title": "Online RSA Key Generator",
+          "index": 4,
+          "dateAdded": 1651473143344000,
+          "lastModified": 1651473150943000,
+          "id": 31,
+          "typeCode": 1,
+          "type": "text/x-moz-place",
+          "uri": "https://travistidwell.com/jsencrypt/demo/"
+        },
+        {
+          "guid": "2mjvVbZpXFLZ",
+          "title": "PEM to JWK Converter",
+          "index": 5,
+          "dateAdded": 1651473074116000,
+          "lastModified": 1651473128107000,
+          "id": 29,
+          "typeCode": 1,
+          "type": "text/x-moz-place",
+          "uri": "https://irrte.ch/jwt-js-decode/pem2jwk.html"
+        },
+        {
+          "guid": "k09DaoCp-qor",
+          "title": "SAML Decoder",
+          "index": 6,
+          "dateAdded": 1651473277318000,
+          "lastModified": 1651473303226000,
+          "id": 35,
+          "typeCode": 1,
+          "iconUri": "https://www.samltool.com/img/favicon32.png?v2",
+          "type": "text/x-moz-place",
+          "uri": "https://www.samltool.com/decode.php"
+        },
+        {
+          "guid": "A-74PCOz3MX6",
+          "title": "SAML Encoder",
+          "index": 7,
+          "dateAdded": 1651473296438000,
+          "lastModified": 1651473300912000,
+          "id": 36,
+          "typeCode": 1,
+          "iconUri": "https://www.samltool.com/img/favicon32.png?v2",
+          "type": "text/x-moz-place",
+          "uri": "https://www.samltool.com/encode.php"
+        },
+        {
+          "guid": "O6zqSUTO6ndn",
+          "title": "SAML Tool",
+          "index": 8,
+          "dateAdded": 1651473238000000,
+          "lastModified": 1651473247181000,
+          "id": 33,
+          "typeCode": 1,
+          "type": "text/x-moz-place",
+          "uri": "https://samltool.io/"
+        }
+      ]
+    },
+    {
+      "guid": "mobile______",
+      "title": "mobile",
+      "index": 4,
+      "dateAdded": 1649065015574000,
+      "lastModified": 1649065015574000,
+      "id": 6,
+      "typeCode": 2,
+      "type": "text/x-moz-place-container",
+      "root": "mobileFolder"
+    }
+  ]
+}
