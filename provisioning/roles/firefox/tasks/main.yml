@@ -34,6 +34,7 @@
     mode: '0755'
   loop:
     - "{{ firefox_mozilla_directory }}/certificates"
+    - "{{ firefox_profile_directory }}/bookmarkbackups/"
   tags: firefox
 
 - name: Create Firefox Profile Directory
@@ -97,4 +98,11 @@
     owner: "{{ vm_user }}"
     group: "{{ vm_user_details.group }}"
     recurse: yes
+  tags: firefox
+
+- name: Create the Firefox certificate database if it does not exist
+  ansible.builtin.command: >
+    bash -c "certutil -N -d sql:{{ firefox_profile_directory }} -f /dev/null"
+  args:
+    creates: "{{ firefox_profile_directory }}/cert9.db"
   tags: firefox
