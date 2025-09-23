@@ -33,8 +33,9 @@
     group: "{{ vm_user_details.group }}"
     mode: '0755'
   loop:
-    - "{{ firefox_mozilla_directory }}/certificates"
     - "{{ firefox_profile_directory }}/bookmarkbackups/"
+    - "{{ firefox_mozilla_directory }}/certificates"
+    - "{{ firefox_profile_directory }}/extensions/"
   tags: firefox
 
 - name: Create Firefox Profile Directory
