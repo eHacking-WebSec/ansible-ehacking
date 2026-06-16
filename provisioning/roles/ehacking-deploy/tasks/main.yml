@@ -124,8 +124,10 @@
     mode: "0644"
   tags: ehacking-deploy
 
-# Firefox reads the OS trust store directly via ImportEnterpriseRoots — no
-# per-profile certutil/NSS hack (the old "known bug"). Covers deb + snap.
+# Firefox CA trust. The enterprise-roots policy covers the deb build, but the
+# Firefox *snap* is confined and does NOT read the OS trust store — so for snap
+# we also import the system CAs into the profile's NSS DB further down (mirrors
+# Chromium). The policy is harmless either way.
 - name: Ensure the Firefox managed-policy directory exists
   ansible.builtin.file:
     path: /etc/firefox/policies
@@ -202,6 +204,41 @@
   ansible.builtin.command:
     cmd: "certutil -d sql:{{ vm_user_home }}/.pki/nssdb -A -t 'C,,' -n {{ item.item.path | basename | regex_replace('\\.crt$', '') }} -i {{ item.item.path }}"
   loop: "{{ ehacking_nss_present.results }}"
+  loop_control:
+    label: "{{ item.item.path | basename }}"
+  when: item.rc != 0
+  tags: ehacking-deploy
+
+# --- Firefox snap: per-profile NSS DB ---------------------------------------
+# The confined Firefox snap can't see the OS trust store, so import the same
+# system CAs into the profile's cert9.db, exactly like Chromium above. The
+# profile dir is set by the firefox role; recompute it here so this stays
+# runnable standalone (--tags ehacking-deploy).
+- name: Resolve the Firefox profile dir (snap vs deb)
+  ansible.builtin.set_fact:
+    firefox_profile_directory: "{{ vm_user_home }}{{ '/snap/firefox/common' if snap_check.rc == 0 else '' }}/.mozilla/firefox/ehacking.default"
+  when: firefox_profile_directory is undefined
+  tags: ehacking-deploy
+
+- name: Check which system CAs are already trusted in Firefox's NSS DB
+  become: true
+  become_user: "{{ vm_user }}"
+  ansible.builtin.command:
+    cmd: "certutil -d sql:{{ firefox_profile_directory }} -L -a -n {{ item.path | basename | regex_replace('\\.crt$', '') }}"
+  loop: "{{ ehacking_system_cas.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  register: ehacking_ff_nss_present
+  changed_when: false
+  failed_when: false
+  tags: ehacking-deploy
+
+- name: Import missing system CAs into Firefox's NSS DB
+  become: true
+  become_user: "{{ vm_user }}"
+  ansible.builtin.command:
+    cmd: "certutil -d sql:{{ firefox_profile_directory }} -A -t 'C,,' -n {{ item.item.path | basename | regex_replace('\\.crt$', '') }} -i {{ item.item.path }}"
+  loop: "{{ ehacking_ff_nss_present.results }}"
   loop_control:
     label: "{{ item.item.path | basename }}"
   when: item.rc != 0
