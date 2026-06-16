@@ -14,8 +14,10 @@
 # HOW TO SUPPLY THIS FILE TO THE INSTALLER (pick ONE)
 # -----------------------------------------------------------------------------
 # This is a cloud-init "user-data" file (note the mandatory `#cloud-config`
-# first line). subiquity consumes the `autoinstall:` block; cloud-init runs the
-# `write_files` / `runcmd` below on the installed system's first boot.
+# first line). The ONLY top-level key is `autoinstall:` — subiquity is strict
+# about that. The first-boot provisioning lives under `autoinstall.user-data`,
+# which subiquity seeds into the installed system for cloud-init to run on the
+# first real boot.
 #
 # (A) NoCloud seed disk — simplest for QEMU/desktop, fully offline ------------
 #   1. Put this file next to an empty `meta-data` file:
@@ -117,96 +119,78 @@ autoinstall:
     - wget
 
   # ---------------------------------------------------------------------------
-  # WHY NOT RUN THE PLAYBOOK FROM late-commands?
+  # FIRST-BOOT PROVISIONING (seeded into the installed system via user-data)
   # ---------------------------------------------------------------------------
-  # `late-commands` run inside the installer's *target chroot* (`/target`),
-  # where systemd is NOT the running init and the user session / rootless-podman
-  # socket / linger do not exist. The eHacking playbook brings up the stack via
-  # a `systemd --user` unit, enables linger, and polls the *running* CA server
-  # over HTTP — all of which need a booted system. Running it in the chroot
-  # would fail. So instead we DEFER provisioning to the first real boot:
-  # `late-commands` only stages a first-boot oneshot service into the target.
-  # =========================================================================
+  # We DON'T provision from `late-commands`: those run inside the installer's
+  # target chroot (`/target`), where systemd isn't the running init and the user
+  # session / rootless-podman socket / linger don't exist — the eHacking playbook
+  # needs a booted system. So `user-data` (plain cloud-config) is seeded into the
+  # installed root and cloud-init runs it on the FIRST real boot, as root. Root
+  # matters: the playbook's `--become` + the ubuntu role create/own the `student`
+  # user, so provisioning must start as root, not as `student`.
+  user-data:
+    write_files:
+      # First-boot runner: the canonical eHacking entry point. It apt-installs
+      # ansible+git, clones this repo and runs the playbook. Using the published
+      # raw URL keeps a SINGLE source of truth with the README one-liner.
+      # NOTE: this fetches over the network, so it requires the repo to be
+      # PUSHED/PUBLIC on GitHub. For a fully air-gapped build, replace the curl
+      # line with a clone of a local mirror (or bake the repo into the seed).
+      - path: /usr/local/sbin/ehacking-firstboot.sh
+        permissions: "0755"
+        owner: root:root
+        content: |
+          #!/usr/bin/env bash
+          # eHacking first-boot provisioning. Runs once as root via
+          # ehacking-firstboot.service, then disables itself.
+          set -euo pipefail
 
-  # No-op marker so subiquity records the field even though the real install of
-  # the first-boot unit happens via cloud-init `write_files` (which targets the
-  # installed root for us and avoids fragile `curtin in-target` quoting).
-  late-commands:
-    - "true # first-boot provisioning is wired via cloud-config write_files/runcmd"
+          STAMP=/var/lib/ehacking-firstboot.done
+          if [ -f "$STAMP" ]; then
+            echo "eHacking already provisioned ($STAMP exists) — nothing to do."
+            exit 0
+          fi
 
-# ---------------------------------------------------------------------------
-# FIRST-BOOT PROVISIONING (cloud-init, runs on the INSTALLED system)
-# ---------------------------------------------------------------------------
-# These keys are plain cloud-config (NOT under `autoinstall:`). cloud-init
-# writes them into the installed system and `runcmd` executes once, late in the
-# install, with `/target` as root — so the files land on the real machine.
-# The oneshot service then runs on the first boot, as **root**, which fixes the
-# historical "wrong user" problem: the playbook's own `--become` + the ubuntu
-# role create/own the `student` user, so provisioning must start as root, not as
-# `student`.
+          echo "### eHacking first-boot provisioning starting…"
+          # Wait for working networking + DNS (image pulls / git clone need it).
+          for i in $(seq 1 60); do
+            if getent hosts github.com >/dev/null 2>&1; then break; fi
+            echo "waiting for network/DNS… ($i/60)"; sleep 5
+          done
 
-write_files:
-  # First-boot runner: the canonical eHacking entry point. It apt-installs
-  # ansible+git, clones this repo and runs the playbook. Using the published
-  # raw URL keeps a SINGLE source of truth with the README one-liner.
-  # NOTE: this fetches over the network, so it requires the repo to be
-  # PUSHED/PUBLIC on GitHub. For a fully air-gapped build, replace the curl line
-  # with a clone of a local mirror (or bake the repo into the seed).
-  - path: /usr/local/sbin/ehacking-firstboot.sh
-    permissions: "0755"
-    owner: root:root
-    content: |
-      #!/usr/bin/env bash
-      # eHacking first-boot provisioning. Runs once as root via
-      # ehacking-firstboot.service, then disables itself.
-      set -euo pipefail
+          # Canonical entry point (same as the README one-liner). Pipes the
+          # bootstrap script to bash; it self-installs ansible+git, clones the
+          # repo and runs `sudo ansible-playbook …`. We are already root here.
+          curl -fsSL https://raw.githubusercontent.com/eHacking-WebSec/ansible-ehacking/refs/heads/main/ubuntu_to_ehacking.sh | bash
 
-      STAMP=/var/lib/ehacking-firstboot.done
-      if [ -f "$STAMP" ]; then
-        echo "eHacking already provisioned ($STAMP exists) — nothing to do."
-        exit 0
-      fi
+          touch "$STAMP"
+          echo "### eHacking first-boot provisioning finished."
 
-      echo "### eHacking first-boot provisioning starting…"
-      # Wait for working networking + DNS (image pulls / git clone need it).
-      for i in $(seq 1 60); do
-        if getent hosts github.com >/dev/null 2>&1; then break; fi
-        echo "waiting for network/DNS… ($i/60)"; sleep 5
-      done
+      # Oneshot unit that runs the script above on the first boot, as root, after
+      # the network is up. After it succeeds (the stamp file) it's a fast no-op.
+      - path: /etc/systemd/system/ehacking-firstboot.service
+        permissions: "0644"
+        owner: root:root
+        content: |
+          [Unit]
+          Description=eHacking first-boot provisioning (curl … | bash -> ansible-playbook)
+          Wants=network-online.target
+          After=network-online.target
+          ConditionPathExists=!/var/lib/ehacking-firstboot.done
 
-      # Canonical entry point (same as the README one-liner). Pipes the
-      # bootstrap script to bash; it self-installs ansible+git, clones the repo
-      # and runs `sudo ansible-playbook …`. We are already root here.
-      curl -fsSL https://raw.githubusercontent.com/eHacking-WebSec/ansible-ehacking/refs/heads/main/ubuntu_to_ehacking.sh | bash
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          ExecStart=/usr/local/sbin/ehacking-firstboot.sh
+          StandardOutput=journal+console
+          StandardError=journal+console
+          TimeoutStartSec=0
 
-      touch "$STAMP"
-      echo "### eHacking first-boot provisioning finished."
+          [Install]
+          WantedBy=multi-user.target
 
-  # Oneshot unit that runs the script above on the first boot, as root, after
-  # the network is up. After it succeeds (the stamp file) it's a fast no-op, and
-  # runcmd disables it anyway.
-  - path: /etc/systemd/system/ehacking-firstboot.service
-    permissions: "0644"
-    owner: root:root
-    content: |
-      [Unit]
-      Description=eHacking first-boot provisioning (curl … | bash -> ansible-playbook)
-      Wants=network-online.target
-      After=network-online.target
-      ConditionPathExists=!/var/lib/ehacking-firstboot.done
-
-      [Service]
-      Type=oneshot
-      RemainAfterExit=yes
-      ExecStart=/usr/local/sbin/ehacking-firstboot.sh
-      StandardOutput=journal+console
-      StandardError=journal+console
-      TimeoutStartSec=0
-
-      [Install]
-      WantedBy=multi-user.target
-
-runcmd:
-  # Enable (don't start — we're still in the installer) the first-boot unit so
-  # it fires on the next real boot.
-  - [systemctl, enable, ehacking-firstboot.service]
+    runcmd:
+      # Register + start the unit on this first boot (--now, so we don't waste a
+      # reboot). cloud-init runs this late in boot, with the network up.
+      - [systemctl, daemon-reload]
+      - [systemctl, enable, --now, ehacking-firstboot.service]
