@@ -66,8 +66,3 @@
         name: bruno
       when: ansible_architecture == 'x86_64'
       tags: bruno
-    - name: Install postman REST client (only available on x86)
-      include_role:
-        name: postman
-      when: ansible_architecture == 'x86_64'
-      tags: postman
