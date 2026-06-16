@@ -6,7 +6,7 @@ child.sendline('y')
 
 time.sleep(20)
 
-wget = pexpect.popen_spawn.PopenSpawn('wget -e use_proxy=yes -e http_proxy=127.0.0.1:8080 -O {{ vm_user_details.home }}/Downloads/Burpsuite-CA-certificate.pem http://burpsuite/cert', encoding='cp437')
+wget = pexpect.popen_spawn.PopenSpawn('wget -e use_proxy=yes -e http_proxy=127.0.0.1:8080 -O {{ vm_user_home }}/Downloads/Burpsuite-CA-certificate.pem http://burpsuite/cert', encoding='cp437')
 
 time.sleep(5)
 

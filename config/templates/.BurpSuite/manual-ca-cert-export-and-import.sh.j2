@@ -1,6 +1,6 @@
 #!/bin/bash
-{{ vm_user_details.home }}/.BurpSuite/burp-first-start.sh &
+{{ vm_user_home }}/.BurpSuite/burp-first-start.sh &
 sleep 15s
-wget -e use_proxy=yes -e http_proxy=127.0.0.1:8080 -O {{ vm_user_details.home }}/Downloads/Burpsuite-CA-certificate.pem http://burpsuite/cert
+wget -e use_proxy=yes -e http_proxy=127.0.0.1:8080 -O {{ vm_user_home }}/Downloads/Burpsuite-CA-certificate.pem http://burpsuite/cert
 rm -r /tmp/burp*
-cp {{ vm_user_details.home }}/Downloads/Burpsuite-CA-certificate.pem {{ vm_user_details.home }}/.mozilla/certificates/.
+cp {{ vm_user_home }}/Downloads/Burpsuite-CA-certificate.pem {{ vm_user_home }}/.mozilla/certificates/.
