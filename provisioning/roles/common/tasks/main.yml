@@ -1,46 +1,41 @@
 ---
 - name: Create User Application directory
   ansible.builtin.file:
-    path: '{{ vm_user_details.home }}/.local/share/applications/'
+    path: '{{ vm_user_home }}/.local/share/applications/'
     state: 'directory'
     mode: '0755'
     owner: "{{ vm_user }}"
-    group: "{{ vm_user_details.group }}"
-  tags: system
+    group: "{{ vm_user_group }}"
+  tags: common
 
 - name: Create Desktop directory
   ansible.builtin.file:
-    path: '{{ vm_user_details.home }}/Desktop'
+    path: '{{ vm_user_home }}/Desktop'
     state: 'directory'
     mode: '0755'
     owner: "{{ vm_user }}"
-    group: "{{ vm_user_details.group }}"
-  tags: system
+    group: "{{ vm_user_group }}"
+  tags: common
 
 - name: Create Downloads directory
   ansible.builtin.file:
-    path: '{{ vm_user_details.home }}/Downloads'
+    path: '{{ vm_user_home }}/Downloads'
     state: 'directory'
     mode: '0755'
     owner: "{{ vm_user }}"
-    group: "{{ vm_user_details.group }}"
-  tags: system
+    group: "{{ vm_user_group }}"
+  tags: common
 
 - name: Copy configuration files to Desktop
   ansible.builtin.copy:
     src: '{{ config_dir }}/Desktop/'
     remote_src: yes
-    dest: '{{ vm_user_details.home }}/Desktop/'
+    dest: '{{ vm_user_home }}/Desktop/'
     owner: "{{ vm_user }}"
-    group: "{{ vm_user_details.group }}"
+    group: "{{ vm_user_group }}"
     mode: '0755'
   notify: trust desktop files
-  tags: system
-
-- name: Check if dconf is installed, e.g. GNOME or XFCE
-  command: which dconf
-  register: dconf_check
-  ignore_errors: yes
+  tags: common
 
 - name: Set favorite GNOME apps
   community.general.dconf:
@@ -50,3 +45,4 @@
   become: yes
   become_user: "{{ vm_user }}"
   when: dconf_check.rc == 0
+  tags: common

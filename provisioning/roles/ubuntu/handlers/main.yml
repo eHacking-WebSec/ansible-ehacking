@@ -4,5 +4,5 @@
   become_user: "{{ vm_user }}"
   ansible.builtin.command:
     cmd: dbus-launch gio set "{{ item }}" "metadata::trusted" "true"
-  loop: "{{ query('fileglob', '{{ vm_user_details.home }}/Desktop/*.desktop') }}"
+  loop: "{{ query('fileglob', vm_user_home ~ '/Desktop/*.desktop') }}"
   when: gio_check.rc == 0

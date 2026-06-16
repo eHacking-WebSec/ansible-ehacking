@@ -3,19 +3,25 @@
   apt:
     update_cache: yes
     cache_valid_time: 86400  # One day in seconds
-  tags: update
+  tags:
+    - ubuntu
+    - update
 
 - name: Update all packages
   apt:
     upgrade: safe
     cache_valid_time: 86400  # One day in seconds
-  tags: update
+  tags:
+    - ubuntu
+    - update
 
 - name: Update all packages to the latest version
   apt:
     upgrade: dist
     cache_valid_time: 86400  # One day in seconds
-  tags: upgrade
+  tags:
+    - ubuntu
+    - upgrade
 
 - name: Install probably missing packages
   apt:
@@ -34,7 +40,9 @@
       - vim
       - zsh
     state: latest
-  tags: packages
+  tags:
+    - ubuntu
+    - packages
 
 - name: Remove unwanted packages
   apt:
@@ -44,51 +52,64 @@
       - ibus-gtk
       - ibus-gtk3
     state: absent
-  tags: packages
-
+  tags:
+    - ubuntu
+    - packages
 
 - name: Ensure the locale {{ config_system_locale }} exists
-  locale_gen:
+  community.general.locale_gen:
     name: "{{ config_system_locale }}"
     state: present
-  tags: system
+  tags:
+    - ubuntu
+    - system
 
 - name: Get current locale and language configuration
-  command: localectl status
+  ansible.builtin.command: localectl status
   register: locale_status
   changed_when: false
-  tags: system
+  tags:
+    - ubuntu
+    - system
 
+# localectl set-locale has no own idempotency; gate it on the current status so
+# re-runs report ok instead of always-changed.
 - name: Set {{ config_system_locale }} as default locale
-  command: localectl set-locale LANG={{ config_system_locale }} LANGUAGE={{ config_system_locale }}
-  tags: system
+  ansible.builtin.command: localectl set-locale LANG={{ config_system_locale }} LANGUAGE={{ config_system_locale }}
+  when: "'System Locale: LANG=' ~ config_system_locale not in locale_status.stdout"
+  tags:
+    - ubuntu
+    - system
 
 - name: Set timezone to {{ config_system_timezone }}
-  timezone:
+  community.general.timezone:
     name: "{{ config_system_timezone }}"
-  tags: system
+  tags:
+    - ubuntu
+    - system
 
 - name: Change keyboard layout in /etc/default/keyboard to {{ config_keyboard_layout }}
   lineinfile:
     path: /etc/default/keyboard
     regexp: '^XKBLAYOUT="us"'
     line: XKBLAYOUT="{{ config_keyboard_layout }}"
-  tags: system
+  tags:
+    - ubuntu
+    - system
 
 - name: Remove dependencies that are no longer required
   apt:
     autoremove: yes
-  tags: clean
+  tags:
+    - ubuntu
+    - clean
 
 - name: Remove useless packages from the cache
   apt:
     autoclean: yes
-  tags: clean
-
-  # - name: Clean apt deb file cache
-  #   apt:
-  #     clean: yes
-  #   tags: clean
+  tags:
+    - ubuntu
+    - clean
 
 - name: Create {{ vm_user }} user
   ansible.builtin.user:
@@ -97,19 +118,24 @@
     comment: "{{ vm_user }} (Default for eHacking)"
     groups: sudo
     shell: /usr/bin/bash
-  tags: system-local
+  tags:
+    - ubuntu
+    - system-local
 
-- name: Get user details
-  ansible.builtin.user:
-    name: "{{ vm_user }}"
-  register: vm_user_details
+# Refresh the shared user facts now that the user definitely exists (the
+# playbook pre_task can't, on a fresh machine, see a user that this role
+# creates). Downstream roles consume vm_user_home / vm_user_group / vm_user_uid.
+- name: Resolve the training user's passwd entry
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ vm_user }}"
+  tags:
+    - ubuntu
 
-- name: Check if gio is installed, e.g. GNOME or XFCE
-  command: which gio
-  register: gio_check
-  ignore_errors: yes
-
-- name: Check if snap is installed, e.g. Ubuntu
-  command: which snap
-  register: snap_check
-  ignore_errors: yes
+- name: Set vm_user_home / vm_user_group / vm_user_uid facts
+  ansible.builtin.set_fact:
+    vm_user_uid: "{{ ansible_facts.getent_passwd[vm_user][1] }}"
+    vm_user_group: "{{ ansible_facts.getent_passwd[vm_user][2] }}"
+    vm_user_home: "{{ ansible_facts.getent_passwd[vm_user][4] }}"
+  tags:
+    - ubuntu
