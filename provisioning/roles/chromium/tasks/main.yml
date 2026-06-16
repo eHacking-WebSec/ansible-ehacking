@@ -1,9 +1,7 @@
 ---
-# Chromium is the snap package on Ubuntu 26.04 desktop. The snap's chromium-config
-# plug exposes the real ~/.pki into the sandbox, so the per-user NSS DB lives at
-# ~/.pki/nssdb (NOT the snap-confined path). The eHacking CA + Burp CA are imported
-# there by ehacking-deploy (loops over the OS ca-certificates dir); Firefox gets
-# them via the enterprise-roots policy instead.
+# Chromium is the snap package on Ubuntu. CA trust is handled centrally by the
+# ehacking-deploy role via the CACertificates managed policy (Chromium's verifier
+# ignores the user NSS DB), so this role only installs the browser.
 - name: Install Chromium Snap
   snap:
     name:
@@ -17,26 +15,3 @@
     state: latest
   tags: chromium
   when: snap_check.rc != 0
-
-- name: Set chromium_certificate_store
-  ansible.builtin.set_fact:
-    chromium_certificate_store: "{{ vm_user_home }}/.pki/nssdb"
-  when: chromium_certificate_store is undefined
-  tags: chromium
-
-- name: Ensure the Chromium NSS database directory exists
-  ansible.builtin.file:
-    path: "{{ chromium_certificate_store }}"
-    state: directory
-    mode: '0700'
-    owner: "{{ vm_user }}"
-    group: "{{ vm_user_group }}"
-  tags: chromium
-
-- name: Create the Chromium certificate database if it does not exist
-  become: yes
-  become_user: "{{ vm_user }}"
-  ansible.builtin.command:
-    cmd: certutil -d sql:{{ chromium_certificate_store }} -N --empty-password
-    creates: "{{ chromium_certificate_store }}/cert9.db"
-  tags: chromium

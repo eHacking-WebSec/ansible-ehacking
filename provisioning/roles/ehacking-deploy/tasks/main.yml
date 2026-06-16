@@ -146,73 +146,51 @@
     mode: "0644"
   tags: ehacking-deploy
 
-# --- Chromium: per-user NSS DB ----------------------------------------------
-# Chromium has no OS-store hook, so import every CA from the system dir (step-ca
-# root + Burp's, both *.crt) into the user's NSS DB. certutil ships in
-# libnss3-tools — install it here so the role is standalone.
-- name: Ensure certutil is available (Chromium NSS)
+# certutil (libnss3-tools) is needed for the Firefox NSS import below.
+- name: Ensure certutil is available (Firefox NSS)
   ansible.builtin.apt:
     name: libnss3-tools
     state: present
   tags: ehacking-deploy
 
-- name: Ensure the user's NSS DB directory exists (Chromium)
-  become: true
-  become_user: "{{ vm_user }}"
-  ansible.builtin.file:
-    path: "{{ vm_user_home }}/.pki/nssdb"
-    state: directory
-    mode: "0700"
-  tags: ehacking-deploy
-
-- name: Initialise the user's NSS DB (Chromium)
-  become: true
-  become_user: "{{ vm_user }}"
-  ansible.builtin.command:
-    cmd: "certutil -d sql:{{ vm_user_home }}/.pki/nssdb -N --empty-password"
-    creates: "{{ vm_user_home }}/.pki/nssdb/cert9.db"
-  tags: ehacking-deploy
-
-- name: Discover all system CAs to trust in Chromium
+- name: Discover all system CAs to trust (Chromium policy + Firefox NSS)
   ansible.builtin.find:
     paths: /usr/local/share/ca-certificates
     patterns: "*.crt"
   register: ehacking_system_cas
   tags: ehacking-deploy
 
-# Idempotency by certificate, not nickname: NSS stores one entry per cert, so a
-# per-nickname check would re-import (and report changed) every run if the same
-# cert is already trusted under another name. Check the cert is present at all.
-- name: Check which system CAs are already trusted in Chromium's NSS DB
-  become: true
-  become_user: "{{ vm_user }}"
-  ansible.builtin.command:
-    cmd: "certutil -d sql:{{ vm_user_home }}/.pki/nssdb -L -a -n {{ item.path | basename | regex_replace('\\.crt$', '') }}"
+# --- Chromium: CACertificates managed policy --------------------------------
+# Chromium's Chrome-Root-Store verifier ignores the user NSS DB, and the snap
+# can't see the OS trust store, so trust the roots via the CACertificates policy
+# (read from /etc/chromium-browser/policies, which the snap exposes).
+- name: Encode each system CA as base64 DER for the Chromium policy
+  ansible.builtin.shell: "openssl x509 -in {{ item.path }} -outform DER | base64 -w0"
+  register: ehacking_chromium_ca_der
+  changed_when: false
   loop: "{{ ehacking_system_cas.files }}"
   loop_control:
     label: "{{ item.path | basename }}"
-  register: ehacking_nss_present
-  changed_when: false
-  failed_when: false
   tags: ehacking-deploy
 
-# Import any CA whose nickname isn't yet in the DB. certutil -A dedupes by cert,
-# so re-adding an already-trusted cert under the same nickname is a safe no-op.
-- name: Import missing system CAs into Chromium's NSS DB
-  become: true
-  become_user: "{{ vm_user }}"
-  ansible.builtin.command:
-    cmd: "certutil -d sql:{{ vm_user_home }}/.pki/nssdb -A -t 'C,,' -n {{ item.item.path | basename | regex_replace('\\.crt$', '') }} -i {{ item.item.path }}"
-  loop: "{{ ehacking_nss_present.results }}"
-  loop_control:
-    label: "{{ item.item.path | basename }}"
-  when: item.rc != 0
+- name: Ensure the Chromium managed-policy directory exists
+  ansible.builtin.file:
+    path: /etc/chromium-browser/policies/managed
+    state: directory
+    mode: "0755"
+  tags: ehacking-deploy
+
+- name: Trust the system CAs in Chromium via the CACertificates policy
+  ansible.builtin.copy:
+    dest: /etc/chromium-browser/policies/managed/ehacking-ca.json
+    content: "{{ {'CACertificates': ehacking_chromium_ca_der.results | map(attribute='stdout') | list} | to_nice_json }}"
+    mode: "0644"
   tags: ehacking-deploy
 
 # --- Firefox snap: per-profile NSS DB ---------------------------------------
-# The confined Firefox snap can't see the OS trust store, so import the same
-# system CAs into the profile's cert9.db, exactly like Chromium above. The
-# profile dir is set by the firefox role; recompute it here so this stays
+# The confined Firefox snap can't see the OS trust store, so import the system
+# CAs into the profile's cert9.db (Firefox has no CACertificates-style policy).
+# The profile dir is set by the firefox role; recompute it here so this stays
 # runnable standalone (--tags ehacking-deploy).
 - name: Resolve the Firefox profile dir (snap vs deb)
   ansible.builtin.set_fact:
