@@ -15,6 +15,7 @@
       ansible.builtin.getent:
         database: passwd
         key: "{{ vm_user }}"
+        fail_key: false  # on a fresh box the ubuntu role creates the user later
       tags: always
 
     - name: Set vm_user_home / vm_user_group / vm_user_uid facts
