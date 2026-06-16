@@ -1,0 +1,7 @@
+---
+# Ansible collections the playbook relies on. The Ubuntu `ansible` apt package
+# already bundles these, so installing from here is just a safety net for thin
+# `ansible-core`-only hosts.
+collections:
+  - name: ansible.posix      # sysctl (low-port bind for rootless podman)
+  - name: community.general  # locale_gen, timezone, dconf

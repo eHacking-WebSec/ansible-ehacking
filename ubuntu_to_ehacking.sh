@@ -18,5 +18,9 @@ else
     cd ansible-ehacking
     git pull
 fi
+# The apt `ansible` bundle already ships ansible.posix + community.general; this
+# is a safety net for thin ansible-core-only hosts.
+echo "### Ensuring required Ansible collections"
+ansible-galaxy collection install -r provisioning/requirements.yml
 echo "### Deployment via ansible"
 sudo ansible-playbook -i provisioning/inventory/hosts.yml provisioning/playbook.yml # --skip-tags="postman"
