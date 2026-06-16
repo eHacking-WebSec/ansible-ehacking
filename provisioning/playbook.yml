@@ -23,7 +23,12 @@
         vm_user_uid: "{{ ansible_facts.getent_passwd[vm_user][1] }}"
         vm_user_group: "{{ ansible_facts.getent_passwd[vm_user][2] }}"
         vm_user_home: "{{ ansible_facts.getent_passwd[vm_user][4] }}"
-      when: ansible_facts.getent_passwd[vm_user] is defined
+      # getent with fail_key:false sets the key to None (not undefined) when the
+      # user doesn't exist yet — so guard on `not none`, else [None][2] crashes.
+      # On a fresh box the ubuntu role creates the user and re-resolves these.
+      when:
+        - ansible_facts.getent_passwd[vm_user] is defined
+        - ansible_facts.getent_passwd[vm_user] is not none
       tags: always
 
     # Desktop-environment probes consumed across roles (snap → firefox/chromium/
