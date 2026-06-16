@@ -42,24 +42,9 @@
   become: yes
   become_user: "{{ vm_user }}"
   ansible.builtin.command:
-    cmd: 
-      # code --install-extension humao.rest-client 
+    cmd: >
       code --install-extension VASubasRaj.flashpost
       code --install-extension 42Crunch.vscode-openapi
       code --install-extension petli-full.jq-vscode
-    creates: "{{ vm_user_details.home }}/.vscode/extensions/extensions.json"
+    creates: "{{ vm_user_home }}/.vscode/extensions/extensions.json"
   tags: vscode
-
-  # - name: Create VSCode Application Launcher
-  #   ansible.builtin.copy:
-  #     src: '{{ config_dir }}/applications/code.desktop'
-  #     remote_src: yes
-  #     dest: "{{ item }}"
-  #     owner: "{{ vm_user }}"
-  #     group: "{{ vm_user_details.group }}"
-  #     mode: '0755'
-  #   loop:
-  #     - "{{ vm_user_details.home }}/Desktop/"
-  #     - "{{ vm_user_details.home }}/.local/share/applications/"
-  #   notify: trust desktop files
-  #   tags: vscode

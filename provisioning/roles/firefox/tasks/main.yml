@@ -1,13 +1,11 @@
 ---
-- name: Set firefox_pkg based on distribution
-  ansible.builtin.set_fact:
-    firefox_pkg: "{{ 'firefox-esr' if ansible_distribution == 'Kali' else 'firefox' }}"
-  tags: firefox
-
+# Firefox is the snap package on Ubuntu 26.04 desktop. The eHacking CA is trusted
+# via the enterprise-roots policy (OS trust store), installed by ehacking-deploy
+# — no per-profile certutil/NSS import (the old "known bug").
 - name: Set firefox_profile_directory
   ansible.builtin.set_fact:
-    firefox_mozilla_directory: "{{ vm_user_details.home }}{{ '/snap/firefox/common' if snap_check.rc == 0 }}/.mozilla"
-    firefox_profile_directory: "{{ vm_user_details.home }}{{ '/snap/firefox/common' if snap_check.rc == 0 }}/.mozilla/firefox/ehacking.default"
+    firefox_mozilla_directory: "{{ vm_user_home }}{{ '/snap/firefox/common' if snap_check.rc == 0 }}/.mozilla"
+    firefox_profile_directory: "{{ vm_user_home }}{{ '/snap/firefox/common' if snap_check.rc == 0 }}/.mozilla/firefox/ehacking.default"
   when: firefox_profile_directory is undefined
   tags: firefox
 
@@ -20,7 +18,7 @@
 
 - name: Install Firefox via apt
   apt:
-    pkg: "{{ firefox_pkg }}"
+    pkg: firefox
     state: latest
   tags: firefox
   when: snap_check.rc != 0
@@ -30,7 +28,7 @@
     path: "{{ item }}"
     state: directory
     owner: "{{ vm_user }}"
-    group: "{{ vm_user_details.group }}"
+    group: "{{ vm_user_group }}"
     mode: '0755'
   loop:
     - "{{ firefox_mozilla_directory }}/certificates"
@@ -44,11 +42,11 @@
     creates: "{{ firefox_profile_directory }}"
   tags: firefox
 
-- name: Setz owner
+- name: Set owner
   ansible.builtin.file:
     path: "{{ firefox_mozilla_directory }}"
     owner: "{{ vm_user }}"
-    group: "{{ vm_user_details.group }}"
+    group: "{{ vm_user_group }}"
     recurse: yes
   tags: firefox
 
@@ -58,13 +56,3 @@
   args:
     creates: "{{ firefox_profile_directory }}/cert9.db"
   tags: firefox
-
-# - name: Create policies.json from template
-#   ansible.builtin.template:
-#     src: "{{ config_dir }}/templates/etc_firefox_policies/policies.json.j2"
-#     remote_src: yes
-#     dest: "/etc/firefox/policies/policies.json"
-#     mode: '0644'
-#     owner: "root"
-#     group: "root"
-#   tags: firefox
