@@ -1,23 +1,26 @@
 ---
 - hosts: all
-  remote_user: vagrant
   become_user: root
   become: yes
   vars:
     config_system_locale: 'de_DE.UTF-8'
     config_system_timezone: 'Europe/Berlin'
     config_keyboard_layout: 'de'
-    ehacking_docker: "main"
     config_dir: "{{ playbook_dir }}/../config"
     vm_user: "student"
+    # Login password hash for the training user. "student" is a deliberately
+    # well-known, shared training credential — NOT a secret — so it lives here
+    # as a plain (overridable) variable rather than in ansible-vault. Regenerate
+    # with: openssl passwd -6   (or print_passwords.py).
+    vm_user_password: '$y$j9T$uAIifobKZjHeqFcw180Jb/$tH3ayhWbuHmxybbyP/AaDY/1X5PiqxvoG0ruT6ExH40'
   roles:
-    - ubuntu
+    - ubuntu            # base system + the training user
+    - container-runtime # rootless Podman (default runtime)
     - common
     - firefox
     - chromium
-    - apache
     - burpsuite
-    - ehacking-docker
+    - ehacking-deploy   # clone + run the offline stack, trust the step-ca root
     - vscode
 
   tasks:
