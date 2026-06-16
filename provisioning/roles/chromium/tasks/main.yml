@@ -15,3 +15,34 @@
     state: latest
   tags: chromium
   when: snap_check.rc != 0
+
+# Second launcher: same Chromium, but pre-wired to the Burp proxy. Needs the
+# loopback-bypass override (Chrome bypasses the proxy for *.localhost by default,
+# which is every training target) and its own profile dir so the flags aren't
+# swallowed by an already-running Chromium instance.
+- name: Ensure the user applications directory exists
+  become: true
+  become_user: "{{ vm_user }}"
+  ansible.builtin.file:
+    path: "{{ vm_user_home }}/.local/share/applications"
+    state: directory
+    mode: "0755"
+  tags: chromium
+
+- name: Add a second Chromium launcher routed through the Burp proxy
+  become: true
+  become_user: "{{ vm_user }}"
+  ansible.builtin.copy:
+    dest: "{{ vm_user_home }}/.local/share/applications/chromium-burp.desktop"
+    mode: "0644"
+    content: |
+      [Desktop Entry]
+      Version=1.0
+      Type=Application
+      Name=Chromium (Burp Proxy)
+      Comment=Chromium routed through the Burp Suite proxy at 127.0.0.1:8080
+      Exec=chromium --proxy-server=http://127.0.0.1:8080 "--proxy-bypass-list=<-loopback>" --user-data-dir={{ vm_user_home }}/snap/chromium/common/burp-profile %U
+      Icon=chromium
+      Categories=Network;WebBrowser;
+      StartupNotify=true
+  tags: chromium
