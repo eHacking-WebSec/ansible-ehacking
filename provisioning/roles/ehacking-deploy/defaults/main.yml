@@ -1,0 +1,37 @@
+---
+# User that owns the rootless stack (must match the container-runtime role).
+vm_user: student
+
+# Where to get the offline local-docker-setup and where to clone it.
+ehacking_repo: "https://github.com/eHacking-WebSec/e-hacking-local-docker-setup.git"
+ehacking_version: "main"
+# Clone destination. Defaults to <user-home>/.hidden (resolved in tasks from
+# the passwd db); override to point at a local copy for testing.
+ehacking_dir: ""
+
+# Plain-HTTP root-cert endpoint served by the stack's ca-server sidecar. Polled
+# until it answers, then installed into the trust stores — no `docker exec` /
+# `sleep` race.
+ehacking_ca_url: "http://ca.localhost/root_ca.crt"
+
+# Hostnames the browser/CLI on this host must resolve to 127.0.0.1. (Containers
+# resolve them via Traefik's network aliases; this is only for the host side,
+# in case systemd-resolved doesn't already map *.localhost.)
+ehacking_hosts:
+  - e-hacking.localhost
+  - www.e-hacking.localhost
+  - idp.localhost
+  - sp.localhost
+  - spa.localhost
+  - rs.localhost
+  - json.localhost
+  - rest.localhost
+  - soap.localhost
+  - websec.localhost
+  - xml.localhost
+  - attacker.localhost
+  - ca.localhost
+
+# Pull images before bringing the stack up. True while provisioning a laptop
+# online; the offline laptop itself never pulls.
+ehacking_pull_images: true

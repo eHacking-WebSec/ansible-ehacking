@@ -1,0 +1,9 @@
+---
+# Smoke test for the container-runtime role in isolation. Runs locally on the
+# target (like ubuntu_to_ehacking.sh). Override vm_user on the CLI for a host
+# whose user isn't `student`, e.g. the test VM:
+#   ansible-playbook -i inventory/hosts.yml test-runtime.yml -e vm_user=vm -K
+- hosts: all
+  become: true
+  roles:
+    - container-runtime

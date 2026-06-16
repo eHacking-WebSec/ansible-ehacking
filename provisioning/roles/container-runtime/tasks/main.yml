@@ -1,0 +1,55 @@
+---
+# Rootless Podman is the default runtime for the offline training laptop: no
+# daemon, ships in the Ubuntu archive, and no root-equivalent `docker` group.
+# This role installs it and does the three one-time host tweaks rootless Podman
+# needs (compose provider, low-port bind, persistent user systemd).
+
+- name: Install Podman and the compose-go provider
+  ansible.builtin.apt:
+    name: "{{ container_runtime_packages }}"
+    state: present
+    update_cache: true
+  tags: container-runtime
+
+- name: Look up the runtime user's uid
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ vm_user }}"
+  tags: container-runtime
+
+- name: Set uid fact
+  ansible.builtin.set_fact:
+    vm_user_uid: "{{ ansible_facts.getent_passwd[vm_user][1] }}"
+  tags: container-runtime
+
+# linger keeps the user's systemd instance (and thus the podman socket)
+# running across logout and reboot, with no active login session.
+- name: Enable linger for {{ vm_user }}
+  ansible.builtin.command: "loginctl enable-linger {{ vm_user }}"
+  args:
+    creates: "/var/lib/systemd/linger/{{ vm_user }}"
+  tags: container-runtime
+
+# Traefik's docker provider talks to this socket (mounted as the docker socket
+# by the compose stack's bin/runtime-env.sh).
+- name: Enable and start the rootless podman socket
+  become: true
+  become_user: "{{ vm_user }}"
+  ansible.builtin.systemd_service:
+    name: podman.socket
+    enabled: true
+    state: started
+    scope: user
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ vm_user_uid }}"
+  tags: container-runtime
+
+- name: Allow rootless containers to bind privileged ports (80/443)
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_unprivileged_port_start
+    value: "{{ container_unprivileged_port_start | string }}"
+    sysctl_file: /etc/sysctl.d/99-ehacking-lowports.conf
+    sysctl_set: true
+    reload: true
+    state: present
+  tags: container-runtime

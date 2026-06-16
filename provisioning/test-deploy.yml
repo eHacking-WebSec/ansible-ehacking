@@ -1,0 +1,12 @@
+---
+# End-to-end smoke of the runtime + deploy roles on a real host. Runs locally
+# on the target (like ubuntu_to_ehacking.sh). For the test VM (user `vm`) point
+# it at a pre-copied local-setup and skip the git clone:
+#   ansible-playbook -i inventory/hosts.yml test-deploy.yml \
+#     -e vm_user=vm -e ehacking_repo='' \
+#     -e ehacking_dir=/home/vm/e-hacking-local-docker-setup
+- hosts: all
+  become: true
+  roles:
+    - container-runtime
+    - ehacking-deploy
