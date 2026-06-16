@@ -5,16 +5,18 @@
   tags: bruno
   when: snap_check.rc == 0
 
-- name: bruno - Add signing key to keyring file
-  ansible.builtin.apt_key:
-    id: 9FA6017ECABE0266
-    keyserver: keyserver.ubuntu.com
-    keyring: /etc/apt/trusted.gpg.d/packages.bruno.gpg
+# apt fallback only (snap is preferred). `apt_key` was removed on 26.04, so
+# fetch the signing key into a keyring and reference it via signed-by.
+- name: bruno - Fetch signing key into keyring
+  ansible.builtin.command:
+    cmd: gpg --batch --no-default-keyring --keyring /etc/apt/keyrings/bruno.gpg --keyserver keyserver.ubuntu.com --recv-keys 9FA6017ECABE0266
+    creates: /etc/apt/keyrings/bruno.gpg
   tags: bruno
+  when: snap_check.rc != 0
 
 - name: bruno - Add apt repository
-  apt_repository:
-    repo: deb http://debian.usebruno.com/ bruno stable
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/bruno.gpg] http://debian.usebruno.com/ bruno stable"
     state: present
     filename: bruno
   tags: bruno

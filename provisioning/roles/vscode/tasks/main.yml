@@ -1,14 +1,25 @@
 ---
-- name: VSCode - Add signing key to keyring file
-  ansible.builtin.apt_key:
-    id: BC528686B50D79E339D3721CEB3E94ADBE1229CF
-    url: https://packages.microsoft.com/keys/microsoft.asc
-    keyring: /etc/apt/trusted.gpg.d/packages.microsoft.gpg
+# `apt-key` was removed in Ubuntu 24.04+/26.04, so the old ansible.builtin.apt_key
+# fails ("Failed to find required executable apt-key"). Use the modern
+# signed-by keyring approach instead.
+- name: VSCode - Ensure apt keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
   tags: vscode
 
-- name: VSCode - Add apt repository
-  apt_repository:
-    repo: deb https://packages.microsoft.com/repos/code stable main
+- name: VSCode - Add Microsoft signing key
+  ansible.builtin.get_url:
+    url: https://packages.microsoft.com/keys/microsoft.asc
+    dest: /etc/apt/keyrings/microsoft.asc
+    mode: '0644'
+  tags: vscode
+
+- name: VSCode - Add apt repository (signed-by)
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }} signed-by=/etc/apt/keyrings/microsoft.asc] https://packages.microsoft.com/repos/code stable main"
+    filename: vscode
     state: present
   tags: vscode
 
