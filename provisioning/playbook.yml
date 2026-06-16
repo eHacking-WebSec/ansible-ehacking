@@ -1,18 +1,54 @@
 ---
+# Turn a clean Ubuntu 26.04 install into the eHacking training laptop.
+# Shared vars live in group_vars/all.yml; each role also carries standalone
+# defaults so `ansible-playbook … --tags <role>` works on its own.
 - hosts: all
   become_user: root
   become: yes
-  vars:
-    config_system_locale: 'de_DE.UTF-8'
-    config_system_timezone: 'Europe/Berlin'
-    config_keyboard_layout: 'de'
-    config_dir: "{{ playbook_dir }}/../config"
-    vm_user: "student"
-    # Login password hash for the training user. "student" is a deliberately
-    # well-known, shared training credential — NOT a secret — so it lives here
-    # as a plain (overridable) variable rather than in ansible-vault. Regenerate
-    # with: openssl passwd -6   (or print_passwords.py).
-    vm_user_password: '$y$j9T$uAIifobKZjHeqFcw180Jb/$tH3ayhWbuHmxybbyP/AaDY/1X5PiqxvoG0ruT6ExH40'
+
+  pre_tasks:
+    # One shared user-facts lookup so every role can resolve the training user's
+    # home/group/uid without its own getent. Tagged `always` → it runs for any
+    # `--tags <role>` selection too, keeping each role standalone. (The user is
+    # created by the ubuntu role; for a standalone --tags run it must pre-exist.)
+    - name: Resolve the training user's passwd entry
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ vm_user }}"
+      tags: always
+
+    - name: Set vm_user_home / vm_user_group / vm_user_uid facts
+      ansible.builtin.set_fact:
+        vm_user_uid: "{{ ansible_facts.getent_passwd[vm_user][1] }}"
+        vm_user_group: "{{ ansible_facts.getent_passwd[vm_user][2] }}"
+        vm_user_home: "{{ ansible_facts.getent_passwd[vm_user][4] }}"
+      when: ansible_facts.getent_passwd[vm_user] is defined
+      tags: always
+
+    # Desktop-environment probes consumed across roles (snap → firefox/chromium/
+    # bruno install path; gio → trusting .desktop launchers; dconf → GNOME
+    # favourites). Read-only, tagged `always` so standalone --tags runs see them.
+    - name: Check if snap is installed, e.g. Ubuntu
+      ansible.builtin.command: which snap
+      register: snap_check
+      changed_when: false
+      failed_when: false
+      tags: always
+
+    - name: Check if gio is installed, e.g. GNOME or XFCE
+      ansible.builtin.command: which gio
+      register: gio_check
+      changed_when: false
+      failed_when: false
+      tags: always
+
+    - name: Check if dconf is installed, e.g. GNOME or XFCE
+      ansible.builtin.command: which dconf
+      register: dconf_check
+      changed_when: false
+      failed_when: false
+      tags: always
+
   roles:
     - ubuntu            # base system + the training user
     - container-runtime # rootless Podman (default runtime)
@@ -26,9 +62,11 @@
   tasks:
     - name: Install bruno REST client (only available on x86)
       include_role:
-          name: bruno
+        name: bruno
       when: ansible_architecture == 'x86_64'
+      tags: bruno
     - name: Install postman REST client (only available on x86)
       include_role:
-          name: postman
+        name: postman
       when: ansible_architecture == 'x86_64'
+      tags: postman

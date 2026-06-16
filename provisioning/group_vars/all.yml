@@ -1,0 +1,19 @@
+---
+# Single source of truth for the variables shared across every role. Role
+# defaults/ keep standalone fallbacks so a role still runs on its own, but these
+# win when the full inventory is in play.
+
+# Locale / timezone / keyboard for the German training laptops.
+config_system_locale: 'de_DE.UTF-8'
+config_system_timezone: 'Europe/Berlin'
+config_keyboard_layout: 'de'
+
+# Where the bundled config payload (Burp/Firefox archives, templates, …) lives.
+config_dir: "{{ playbook_dir }}/../config"
+
+# The shared training user. "student" is a deliberately well-known, shared
+# credential — NOT a secret — so the password hash lives here as a plain
+# (overridable) variable rather than in ansible-vault. Regenerate with:
+#   openssl passwd -6        (-> $6$… SHA-512)   or   yescrypt via `openssl passwd`.
+vm_user: "student"
+vm_user_password: '$y$j9T$uAIifobKZjHeqFcw180Jb/$tH3ayhWbuHmxybbyP/AaDY/1X5PiqxvoG0ruT6ExH40'
