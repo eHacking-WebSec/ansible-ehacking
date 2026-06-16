@@ -1,8 +1,7 @@
 ---
 - name: Set burpsuite version (leave empty for latest version)
   ansible.builtin.set_fact:
-    # version: "&version=2025.1.4"
-    version: "" # latest
+    version: "" # latest (override e.g. "&version=2025.1.4" to pin)
   tags: burpsuite
 
 - name: Install package dependencies
@@ -14,21 +13,14 @@
       - python3-defusedxml
       - python3-pexpect
     state: present
-  tags: system-ubuntu
-
-- name: Remove Kali's internal burp
-  apt:
-    pkg: "burpsuite"
-    state: absent
   tags: burpsuite
-  when: ansible_distribution == "Kali"
 
 - name: Download installer (x86_64)
   ansible.builtin.get_url:
     url: "https://portswigger.net/burp/releases/download?product=community{{ version }}&type=linux"
     dest: "/tmp/burp.sh"
     mode: '0640'
-  tags: system-ubuntu
+  tags: burpsuite
   when: ansible_architecture == "x86_64"
 
 - name: Download installer (aarch64)
@@ -36,7 +28,7 @@
     url: "https://portswigger.net/burp/releases/download?product=community{{ version }}&type=linuxArm64"
     dest: "/tmp/burp.sh"
     mode: '0640'
-  tags: system-ubuntu
+  tags: burpsuite
   when: ansible_architecture == "aarch64"
 
 - name: Install
@@ -44,35 +36,20 @@
     cmd: "/bin/sh /tmp/burp.sh -q -varfile '{{ config_dir }}/burpsuite_response.varfile' -overwrite"
     chdir: /tmp
     creates: "/usr/local/BurpSuiteCommunity"
-  tags: system-ubuntu
-
-# - name: Create symbolic link
-#   ansible.builtin.file:
-#     src: /usr/local/bin/BurpSuiteCommunity
-#     dest: /usr/bin/burpsuite
-#     state: link
-#   tags: system-ubuntu
-
-# - name: Find JAR file
-#   find:
-#     paths: /
-#     patterns: '*burpsuite*.jar'
-#     recurse: yes
-#   register: burpsuite_jar_search
+  tags: burpsuite
 
 - name: Set JAR path as a fact
   set_fact:
-    # burpsuite_jar: "{{ burpsuite_jar_search.files[0].path }}"
     burpsuite_jar: "/usr/local/BurpSuiteCommunity/burpsuite_community.jar"
-  # when: burpsuite_jar_search.matched > 0
+  tags: burpsuite
 
-- name: Copy configuration to {{ vm_user_details.home }}
+- name: Copy configuration to {{ vm_user_home }}
   ansible.builtin.copy:
     src: "{{ config_dir }}/.BurpSuite"
     remote_src: yes
-    dest: '{{ vm_user_details.home }}/'
+    dest: '{{ vm_user_home }}/'
     owner: "{{ vm_user }}"
-    group: "{{ vm_user_details.group }}"
+    group: "{{ vm_user_group }}"
     mode: '0755'
   tags: burpsuite
 
@@ -80,11 +57,11 @@
   ansible.builtin.template:
     src: "{{ item }}"
     remote_src: yes
-    dest: "{{ vm_user_details.home }}/.BurpSuite/{{ item | basename | regex_replace('\\.j2$', '') }}"
+    dest: "{{ vm_user_home }}/.BurpSuite/{{ item | basename | regex_replace('\\.j2$', '') }}"
     owner: "{{ vm_user }}"
-    group: "{{ vm_user_details.group }}"
+    group: "{{ vm_user_group }}"
     mode: '0755'
-  loop: "{{ query('fileglob', '{{ config_dir }}/templates/.BurpSuite/*.j2') }}"
+  loop: "{{ query('fileglob', config_dir ~ '/templates/.BurpSuite/*.j2') }}"
   tags: burpsuite
 
 - name: Configure and Accept Terms
@@ -92,8 +69,8 @@
   become_user: "{{ vm_user }}"
   ansible.builtin.command:
     cmd: |
-      python3 {{ vm_user_details.home }}/.BurpSuite/burp-accept-terms-and-conditions-and-download-ca-cert.py
-    creates: "{{ vm_user_details.home }}/Downloads/Burpsuite-CA-certificate.pem"
+      python3 {{ vm_user_home }}/.BurpSuite/burp-accept-terms-and-conditions-and-download-ca-cert.py
+    creates: "{{ vm_user_home }}/Downloads/Burpsuite-CA-certificate.pem"
   tags: burpsuite
 
 - name: Find temporary projects
@@ -111,30 +88,19 @@
   loop: "{{ found_items.files }}"
   tags: burpsuite
 
-- name: Copy Burpsuite-CA-certificate.pem into System Trust Store
+# Drop Burp's CA into the OS trust store. Must be a *.crt file: update-ca-certificates
+# only reads .crt, and ehacking-deploy globs the same extension to import every CA
+# (step-ca root + Burp) into Chromium's NSS DB; Firefox picks them up via the
+# enterprise-roots policy. update-ca-certificates is the only notify (the old
+# per-profile firefox/chromium cert handlers are gone).
+- name: Copy Burp's CA into the system trust store (as .crt)
   ansible.builtin.copy:
-    src: "{{ vm_user_details.home }}/Downloads/Burpsuite-CA-certificate.pem"
+    src: "{{ vm_user_home }}/Downloads/Burpsuite-CA-certificate.pem"
     remote_src: yes
-    dest: /usr/local/share/ca-certificates/
+    dest: /usr/local/share/ca-certificates/burpsuite-ca.crt
     owner: root
     group: root
     mode: '0644'
   notify:
     - update CA certificates
-    - chromium update certificates
-    - firefox update certificates
   tags: burpsuite
-
-# - name: Create Burpsuite Application Launcher
-#   ansible.builtin.copy:
-#     src: '{{ config_dir }}/applications/kali-burpsuite.desktop'
-#     remote_src: yes
-#     dest: "{{ item }}"
-#     owner: "{{ vm_user }}"
-#     group: "{{ vm_user_details.group }}"
-#     mode: '0755'
-#   loop:
-#     - "{{ vm_user_details.home }}/Desktop/"
-#     - "{{ vm_user_details.home }}/.local/share/applications/"
-#   notify: trust desktop files
-#   tags: burpsuite

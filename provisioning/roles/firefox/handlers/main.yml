@@ -1,6 +1,0 @@
----
-- name: firefox update certificates
-  ansible.builtin.command:
-    cmd: certutil -i {{ item }} -d sql:{{ firefox_profile_directory }} -A -t "C,," -n "{{ item | basename }}"
-  loop: "{{ query('fileglob', '/usr/local/share/ca-certificates/*') }}"
-  tags: firefox

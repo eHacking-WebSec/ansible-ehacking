@@ -1,6 +1,0 @@
----
-- name: chromium update certificates
-  ansible.builtin.command: |
-    certutil -i {{ item }} -d sql:{{ chromium_certificate_store }} -A -t "C,," -n "{{ item | basename }}"
-  loop: "{{ query('fileglob', '/usr/local/share/ca-certificates/*') }}"
-  tags: chromium
