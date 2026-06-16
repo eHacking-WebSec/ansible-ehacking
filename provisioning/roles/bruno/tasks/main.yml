@@ -4,7 +4,7 @@
 # (back to an apt repo) once usebruno ships an arm64 one.
 - name: bruno - Map host arch to the release asset token
   ansible.builtin.set_fact:
-    bruno_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
+    bruno_arch: "{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"
   tags: bruno
 
 - name: bruno - Look up the latest GitHub release

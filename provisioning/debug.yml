@@ -9,14 +9,14 @@
 
     - name: Print the OS details
       ansible.builtin.debug:
-        msg: "ansible_os_family: '{{ ansible_os_family }}', ansible_distribution: '{{ ansible_distribution }}', ansible_distribution_version: '{{ ansible_distribution_version }}'"
+        msg: "os_family: '{{ ansible_facts.os_family }}', distribution: '{{ ansible_facts.distribution }}', distribution_version: '{{ ansible_facts.distribution_version }}'"
 
     - name: Distinguish between Debian and Ubuntu
       ansible.builtin.debug:
         msg: "This is Ubuntu"
-      when: ansible_distribution == "Ubuntu"
+      when: ansible_facts.distribution == "Ubuntu"
 
     - name: Distinguish between Debian and Ubuntu
       ansible.builtin.debug:
         msg: "This is Debian"
-      when: ansible_distribution == "Debian"
+      when: ansible_facts.distribution == "Debian"

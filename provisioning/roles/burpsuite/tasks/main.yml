@@ -21,7 +21,7 @@
     dest: "/tmp/burp.sh"
     mode: '0640'
   tags: burpsuite
-  when: ansible_architecture == "x86_64"
+  when: ansible_facts.architecture == "x86_64"
 
 - name: Download installer (aarch64)
   ansible.builtin.get_url:
@@ -29,7 +29,7 @@
     dest: "/tmp/burp.sh"
     mode: '0640'
   tags: burpsuite
-  when: ansible_architecture == "aarch64"
+  when: ansible_facts.architecture == "aarch64"
 
 - name: Install
   ansible.builtin.command:
