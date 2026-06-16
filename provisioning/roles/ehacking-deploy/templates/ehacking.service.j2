@@ -1,0 +1,15 @@
+[Unit]
+Description=eHacking offline training stack (rootless podman compose)
+# The stack talks to the rootless podman API socket; make sure it's up first.
+After=podman.socket
+Wants=podman.socket
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory={{ ehacking_dir }}
+ExecStart={{ ehacking_dir }}/bin/compose up -d
+ExecStop={{ ehacking_dir }}/bin/compose down
+
+[Install]
+WantedBy=default.target

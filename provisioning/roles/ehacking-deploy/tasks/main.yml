@@ -1,19 +1,12 @@
 ---
-# Deploy the eHacking offline stack onto a host that already has rootless
-# Podman (see the container-runtime role): clone the local-docker-setup, bring
-# it up, and trust the step-ca root system-wide + in Firefox/Chromium.
+# Deploy the eHacking offline stack onto a host that already has rootless Podman
+# (see the container-runtime role): clone the local-docker-setup, bring it up via
+# a systemd --user unit (so it also autostarts on login), and trust the step-ca
+# root system-wide + in Firefox/Chromium.
 
-- name: Look up the runtime user
-  ansible.builtin.getent:
-    database: passwd
-    key: "{{ vm_user }}"
-  tags: ehacking-deploy
-
-- name: Resolve home + uid + clone dir
+- name: Resolve clone dir (defaults to <home>/.hidden)
   ansible.builtin.set_fact:
-    vm_user_home: "{{ ansible_facts.getent_passwd[vm_user][4] }}"
-    vm_user_uid: "{{ ansible_facts.getent_passwd[vm_user][1] }}"
-    ehacking_dir: "{{ ehacking_dir or (ansible_facts.getent_passwd[vm_user][4] ~ '/.hidden') }}"
+    ehacking_dir: "{{ ehacking_dir or (vm_user_home ~ '/.hidden') }}"
   tags: ehacking-deploy
 
 - name: Clone the eHacking local-docker-setup
@@ -37,9 +30,6 @@
       {% endfor %}
   tags: ehacking-deploy
 
-# Rootless Podman needs XDG_RUNTIME_DIR pointed at the user's runtime dir so
-# `podman compose` (via bin/compose) finds the rootless socket when run under
-# ansible become (which doesn't set up a full login session).
 - name: Pull images (online provisioning only)
   become: true
   become_user: "{{ vm_user }}"
@@ -52,19 +42,50 @@
   when: ehacking_pull_images | bool
   tags: ehacking-deploy
 
-- name: Bring the stack up (offline-safe, idempotent)
-  become: true
-  become_user: "{{ vm_user }}"
-  ansible.builtin.command:
-    cmd: ./start.sh
-    chdir: "{{ ehacking_dir }}"
-  environment:
-    XDG_RUNTIME_DIR: "/run/user/{{ vm_user_uid }}"
-  changed_when: true
+# --- Autostart via a systemd --user unit -----------------------------------
+# `just` drives the stack manually; the unit brings it up now and on every login.
+- name: Install just (compose shortcuts + autostart helper)
+  ansible.builtin.apt:
+    name: just
+    state: present
   tags: ehacking-deploy
 
-# ca-server (nginx sidecar) publishes the root over plain HTTP. Poll until it
-# answers, then install — robust, runtime-agnostic, no `docker exec`.
+- name: Ensure the user's systemd unit directory exists
+  become: true
+  become_user: "{{ vm_user }}"
+  ansible.builtin.file:
+    path: "{{ vm_user_home }}/.config/systemd/user"
+    state: directory
+    mode: "0755"
+  tags: ehacking-deploy
+
+- name: Install the ehacking.service user unit
+  become: true
+  become_user: "{{ vm_user }}"
+  ansible.builtin.template:
+    src: ehacking.service.j2
+    dest: "{{ vm_user_home }}/.config/systemd/user/ehacking.service"
+    mode: "0644"
+  tags: ehacking-deploy
+
+# enable --now brings the stack up AND wires autostart in one step (oneshot +
+# RemainAfterExit), replacing an explicit ./start.sh call.
+- name: Enable + start ehacking.service (brings the stack up, autostarts on login)
+  become: true
+  become_user: "{{ vm_user }}"
+  ansible.builtin.systemd_service:
+    name: ehacking.service
+    enabled: true
+    state: started
+    scope: user
+    daemon_reload: true
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ vm_user_uid }}"
+  tags: ehacking-deploy
+
+# --- Trust the step-ca root -------------------------------------------------
+# ca-server (nginx sidecar) publishes the root over plain HTTP; poll until it
+# answers, then install — runtime-agnostic, no `docker exec`.
 - name: Wait for the step-ca root to be served
   ansible.builtin.uri:
     url: "{{ ehacking_ca_url }}"
@@ -84,10 +105,9 @@
     mode: "0644"
   tags: ehacking-deploy
 
-# Refresh the bundle with a DIRECT task, not a notify-handler. The copy above is
-# idempotent, so on a re-run it reports "ok" (not "changed") and a handler would
-# never fire — leaving the root installed-but-not-activated. update-ca-certificates
-# is itself idempotent, so always running it is safe.
+# Direct command, not a notify-handler: the copy above is idempotent (reports
+# "ok" on re-run), so a handler would never fire and the root would stay
+# installed-but-not-activated. update-ca-certificates is itself idempotent.
 - name: Refresh the system trust store
   ansible.builtin.command: update-ca-certificates
   register: ehacking_update_ca
@@ -103,9 +123,8 @@
     mode: "0644"
   tags: ehacking-deploy
 
-# Firefox: enterprise policy with ImportEnterpriseRoots=true makes Firefox read
-# the OS trust store directly — no per-profile certutil/NSS hack (the old
-# "known bug"). Covers the deb path; snap Firefox also reads this location.
+# Firefox reads the OS trust store directly via ImportEnterpriseRoots — no
+# per-profile certutil/NSS hack (the old "known bug"). Covers deb + snap.
 - name: Ensure the Firefox managed-policy directory exists
   ansible.builtin.file:
     path: /etc/firefox/policies
@@ -115,7 +134,7 @@
     mode: "0755"
   tags: ehacking-deploy
 
-- name: Trust the step-ca root in Firefox via enterprise policy
+- name: Trust the OS roots in Firefox via enterprise policy
   ansible.builtin.template:
     src: policies.json.j2
     dest: /etc/firefox/policies/policies.json
@@ -124,8 +143,10 @@
     mode: "0644"
   tags: ehacking-deploy
 
-# Chromium uses the per-user NSS DB. certutil (libnss3-tools) is needed — don't
-# assume the chromium role ran first; install it here so the role is standalone.
+# --- Chromium: per-user NSS DB ----------------------------------------------
+# Chromium has no OS-store hook, so import every CA from the system dir (step-ca
+# root + Burp's, both *.crt) into the user's NSS DB. certutil ships in
+# libnss3-tools — install it here so the role is standalone.
 - name: Ensure certutil is available (Chromium NSS)
   ansible.builtin.apt:
     name: libnss3-tools
@@ -149,20 +170,32 @@
     creates: "{{ vm_user_home }}/.pki/nssdb/cert9.db"
   tags: ehacking-deploy
 
-- name: Check whether the root is already trusted in Chromium's NSS DB
+- name: Discover all system CAs to trust in Chromium
+  ansible.builtin.find:
+    paths: /usr/local/share/ca-certificates
+    patterns: "*.crt"
+  register: ehacking_system_cas
+  tags: ehacking-deploy
+
+- name: List CAs already in Chromium's NSS DB
   become: true
   become_user: "{{ vm_user }}"
   ansible.builtin.command:
-    cmd: "certutil -d sql:{{ vm_user_home }}/.pki/nssdb -L -n ehacking-step-ca"
-  register: chromium_cert_present
+    cmd: "certutil -d sql:{{ vm_user_home }}/.pki/nssdb -L"
+  register: ehacking_nss_list
   changed_when: false
   failed_when: false
   tags: ehacking-deploy
 
-- name: Import the step-ca root into Chromium's NSS DB
+# Nickname = filename stem (e.g. ehacking-ca, burpsuite-ca); skip any already
+# present so re-runs stay idempotent.
+- name: Import each system CA into Chromium's NSS DB
   become: true
   become_user: "{{ vm_user }}"
   ansible.builtin.command:
-    cmd: "certutil -d sql:{{ vm_user_home }}/.pki/nssdb -A -t 'C,,' -n ehacking-step-ca -i /usr/local/share/ca-certificates/ehacking-ca.crt"
-  when: chromium_cert_present.rc != 0
+    cmd: "certutil -d sql:{{ vm_user_home }}/.pki/nssdb -A -t 'C,,' -n {{ item.path | basename | regex_replace('\\.crt$', '') }} -i {{ item.path }}"
+  loop: "{{ ehacking_system_cas.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when: (item.path | basename | regex_replace('\\.crt$', '')) not in ehacking_nss_list.stdout
   tags: ehacking-deploy
