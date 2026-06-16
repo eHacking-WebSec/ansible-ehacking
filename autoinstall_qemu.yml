@@ -1,24 +1,212 @@
-# You can use the following URL during Ubuntu install:
-# https://bit.ly/eHacking-qemu
+#cloud-config
+# =============================================================================
+# eHacking unattended autoinstall for Ubuntu 26.04 LTS ("resolute")
+# =============================================================================
+# Hand this file to the Ubuntu 26.04 *live-server* installer (subiquity) and it
+# produces a ready-to-use eHacking training laptop with ZERO interaction: full
+# disk wipe + layout, the `student` user, and — on the FIRST real boot — the
+# canonical eHacking provisioning (the same `ubuntu_to_ehacking.sh` one-liner
+# from the README: clone this repo + `ansible-playbook`).
+#
+# Short link to the raw file (handy on the kernel cmdline):  https://bit.ly/eHacking-qemu
+#
+# -----------------------------------------------------------------------------
+# HOW TO SUPPLY THIS FILE TO THE INSTALLER (pick ONE)
+# -----------------------------------------------------------------------------
+# This is a cloud-init "user-data" file (note the mandatory `#cloud-config`
+# first line). subiquity consumes the `autoinstall:` block; cloud-init runs the
+# `write_files` / `runcmd` below on the installed system's first boot.
+#
+# (A) NoCloud seed disk — simplest for QEMU/desktop, fully offline ------------
+#   1. Put this file next to an empty `meta-data` file:
+#        cp autoinstall_qemu.yml  seed/user-data
+#        : > seed/meta-data           # empty file is fine (or `instance-id: ehacking`)
+#   2. Build a tiny seed image whose *volume label* is exactly CIDATA:
+#        cloud-localds seed.img seed/user-data seed/meta-data      # from cloud-image-utils
+#        # …or, without cloud-image-utils:
+#        genisoimage -output seed.iso -volid CIDATA -joliet -rock seed/user-data seed/meta-data
+#   3. Boot the 26.04 live-server ISO with the seed image attached as a 2nd disk
+#      and add to the kernel command line (edit the GRUB entry with `e`):
+#        autoinstall
+#      cloud-init auto-detects the CIDATA volume; `autoinstall` makes subiquity
+#      run non-interactively. QEMU example:
+#        qemu-system-x86_64 -m 4096 -smp 2 -enable-kvm \
+#          -drive file=target.qcow2,if=virtio \
+#          -drive file=seed.iso,if=virtio,format=raw \
+#          -cdrom ubuntu-26.04-live-server-amd64.iso
+#
+# (B) HTTP seed — no second disk needed ---------------------------------------
+#   1. Serve this file as `user-data` plus an (empty) `meta-data` from a dir:
+#        cp autoinstall_qemu.yml user-data; : > meta-data
+#        python3 -m http.server 3003           # http://<host>:3003/
+#   2. Boot the live-server ISO and append to the kernel command line:
+#        autoinstall ds=nocloud;s=http://<host>:3003/
+#      Notes: use the UNIFIED `ds=nocloud` (the old `ds=nocloud-net` is
+#      deprecated); the URL MUST end in a trailing `/`; if you set this in the
+#      GRUB menu, single-quote it so GRUB doesn't eat the `;`:
+#        autoinstall 'ds=nocloud;s=http://<host>:3003/'
+#      For a local path instead of HTTP:  autoinstall 'ds=nocloud;s=/cidata/'
+#
+# After install the machine reboots ONCE; the eHacking provisioning then runs on
+# first boot (see the systemd oneshot below). It is NOT instant: it apt-installs
+# ansible/git, clones the repos and runs the playbook (pulls container images +
+# builds WildFly), so first boot can take many minutes. Watch it with:
+#   journalctl -u ehacking-firstboot.service -f
+# Login is `student` / `student` once provisioning finishes.
+#
+# WARNING: `storage.layout` below WIPES THE TARGET DISK. Only point the
+# installer at a disk/VM you are happy to erase.
+# =============================================================================
 
 autoinstall:
   version: 1
+
+  # Skip every interactive screen → truly unattended. With this empty list the
+  # installer never stops to ask; combined with `autoinstall` on the cmdline it
+  # also suppresses the "confirm destructive install" prompt.
+  interactive-sections: []
+
+  # German training-laptop defaults (mirrors provisioning/group_vars/all.yml).
   locale: de_DE.UTF-8
   keyboard:
     layout: de
   timezone: "Europe/Berlin"
+
+  # The shared, well-known training login. NOTE: this duplicates the playbook's
+  # `vm_user` / `vm_user_password` (provisioning/group_vars/all.yml) — an
+  # autoinstall file can't read that var, so keep the two in sync by hand. The
+  # ubuntu role later (re)asserts the same user/password, so this is just the
+  # bootstrap identity the installer needs.
   identity:
     realname: eHacking Student
     username: student
     hostname: eHacking-local
-    password: "$6$a/6heY1MUoB884X0$5NePYD86sHTmS9MaqyOX3rdWnRCnugJrVw06nph2pByORkQuwmYj5XX4IpBcP1Jt8M6treyEXoNt1tpMz2PU31" # Password "student" created with `openssl passwd -6`
+    # Password "student" — SHA-512 crypt ($6$), accepted by 26.04.
+    # Regenerate with:  openssl passwd -6   (or print_passwords.py)
+    password: "$6$a/6heY1MUoB884X0$5NePYD86sHTmS9MaqyOX3rdWnRCnugJrVw06nph2pByORkQuwmYj5XX4IpBcP1Jt8M6treyEXoNt1tpMz2PU31"
+
+  # Whole-disk layout → no interactive partitioner. `direct` = a single root
+  # partition (simplest); swap to `lvm` or `zfs` if you prefer.
+  storage:
+    layout:
+      name: direct
+
+  # Don't self-update the installer (keeps an offline/air-gapped install
+  # deterministic); only pull security updates during install.
+  refresh-installer:
+    update: false
+  updates: security
+
+  # Minimal SSH; flip install-server to true if you want remote access.
+  ssh:
+    install-server: false
+    allow-pw: true
+
+  # Baseline tooling the installer lays down directly. The heavy lifting
+  # (Firefox/Chromium/Burp/VS Code, rootless Podman, the offline stack) is done
+  # by the first-boot provisioning below — NOT here.
   packages:
     - ansible
     - curl
     - flatpak
     - git
     - gnome-software-plugin-flatpak
-    - spice-vdagent # QoL
-    - spice-webdavd # QoL
+    - spice-vdagent   # QoL in QEMU/SPICE
+    - spice-webdavd   # QoL in QEMU/SPICE
     - vim
     - wget
+
+  # ---------------------------------------------------------------------------
+  # WHY NOT RUN THE PLAYBOOK FROM late-commands?
+  # ---------------------------------------------------------------------------
+  # `late-commands` run inside the installer's *target chroot* (`/target`),
+  # where systemd is NOT the running init and the user session / rootless-podman
+  # socket / linger do not exist. The eHacking playbook brings up the stack via
+  # a `systemd --user` unit, enables linger, and polls the *running* CA server
+  # over HTTP — all of which need a booted system. Running it in the chroot
+  # would fail. So instead we DEFER provisioning to the first real boot:
+  # `late-commands` only stages a first-boot oneshot service into the target.
+  # =========================================================================
+
+  # No-op marker so subiquity records the field even though the real install of
+  # the first-boot unit happens via cloud-init `write_files` (which targets the
+  # installed root for us and avoids fragile `curtin in-target` quoting).
+  late-commands:
+    - "true # first-boot provisioning is wired via cloud-config write_files/runcmd"
+
+# ---------------------------------------------------------------------------
+# FIRST-BOOT PROVISIONING (cloud-init, runs on the INSTALLED system)
+# ---------------------------------------------------------------------------
+# These keys are plain cloud-config (NOT under `autoinstall:`). cloud-init
+# writes them into the installed system and `runcmd` executes once, late in the
+# install, with `/target` as root — so the files land on the real machine.
+# The oneshot service then runs on the first boot, as **root**, which fixes the
+# historical "wrong user" problem: the playbook's own `--become` + the ubuntu
+# role create/own the `student` user, so provisioning must start as root, not as
+# `student`.
+
+write_files:
+  # First-boot runner: the canonical eHacking entry point. It apt-installs
+  # ansible+git, clones this repo and runs the playbook. Using the published
+  # raw URL keeps a SINGLE source of truth with the README one-liner.
+  # NOTE: this fetches over the network, so it requires the repo to be
+  # PUSHED/PUBLIC on GitHub. For a fully air-gapped build, replace the curl line
+  # with a clone of a local mirror (or bake the repo into the seed).
+  - path: /usr/local/sbin/ehacking-firstboot.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      # eHacking first-boot provisioning. Runs once as root via
+      # ehacking-firstboot.service, then disables itself.
+      set -euo pipefail
+
+      STAMP=/var/lib/ehacking-firstboot.done
+      if [ -f "$STAMP" ]; then
+        echo "eHacking already provisioned ($STAMP exists) — nothing to do."
+        exit 0
+      fi
+
+      echo "### eHacking first-boot provisioning starting…"
+      # Wait for working networking + DNS (image pulls / git clone need it).
+      for i in $(seq 1 60); do
+        if getent hosts github.com >/dev/null 2>&1; then break; fi
+        echo "waiting for network/DNS… ($i/60)"; sleep 5
+      done
+
+      # Canonical entry point (same as the README one-liner). Pipes the
+      # bootstrap script to bash; it self-installs ansible+git, clones the repo
+      # and runs `sudo ansible-playbook …`. We are already root here.
+      curl -fsSL https://raw.githubusercontent.com/eHacking-WebSec/ansible-ehacking/refs/heads/main/ubuntu_to_ehacking.sh | bash
+
+      touch "$STAMP"
+      echo "### eHacking first-boot provisioning finished."
+
+  # Oneshot unit that runs the script above on the first boot, as root, after
+  # the network is up. After it succeeds (the stamp file) it's a fast no-op, and
+  # runcmd disables it anyway.
+  - path: /etc/systemd/system/ehacking-firstboot.service
+    permissions: "0644"
+    owner: root:root
+    content: |
+      [Unit]
+      Description=eHacking first-boot provisioning (curl … | bash -> ansible-playbook)
+      Wants=network-online.target
+      After=network-online.target
+      ConditionPathExists=!/var/lib/ehacking-firstboot.done
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/local/sbin/ehacking-firstboot.sh
+      StandardOutput=journal+console
+      StandardError=journal+console
+      TimeoutStartSec=0
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  # Enable (don't start — we're still in the installer) the first-boot unit so
+  # it fires on the next real boot.
+  - [systemctl, enable, ehacking-firstboot.service]
