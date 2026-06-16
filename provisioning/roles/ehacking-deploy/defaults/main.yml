@@ -9,14 +9,12 @@ ehacking_version: "main"
 # the passwd db); override to point at a local copy for testing.
 ehacking_dir: ""
 
-# Plain-HTTP root-cert endpoint served by the stack's ca-server sidecar. Polled
-# until it answers, then installed into the trust stores — no `docker exec` /
-# `sleep` race.
+# Plain-HTTP root-cert endpoint served by the stack's ca-server sidecar; polled
+# until it answers, then installed into the trust stores.
 ehacking_ca_url: "http://ca.localhost/root_ca.crt"
 
-# Hostnames the browser/CLI on this host must resolve to 127.0.0.1. (Containers
-# resolve them via Traefik's network aliases; this is only for the host side,
-# in case systemd-resolved doesn't already map *.localhost.)
+# Hostnames the host's browser/CLI must resolve to 127.0.0.1 (belt-and-braces
+# in case systemd-resolved doesn't already map *.localhost).
 ehacking_hosts:
   - e-hacking.localhost
   - www.e-hacking.localhost

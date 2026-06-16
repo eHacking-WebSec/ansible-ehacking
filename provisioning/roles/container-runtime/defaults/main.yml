@@ -2,12 +2,10 @@
 # User that owns the rootless container stack.
 vm_user: student
 
-# Podman + the compose-go provider. docker-compose-v2 installs the cli-plugin
-# at /usr/libexec/docker/cli-plugins/docker-compose, which `podman compose`
-# auto-discovers — this is the compose-go binary we want, NOT python
-# podman-compose (which collapses every service into one pod and breaks
-# Traefik's per-hostname routing). Validated on Ubuntu 26.04 "resolute":
-# podman 5.7, docker-compose-v2 2.40 → `podman compose` runs compose-go.
+# Podman + compose-go (docker-compose-v2). `podman compose` auto-discovers the
+# docker-compose-v2 cli-plugin; this is the compose-go binary we want, NOT the
+# python podman-compose (collapses every service into one pod, breaks Traefik's
+# per-hostname routing).
 container_runtime_packages:
   - podman
   - docker-compose-v2
