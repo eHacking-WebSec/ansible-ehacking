@@ -62,12 +62,6 @@
     - firefox
     - chromium
     - burpsuite
+    - bruno             # API client (GitHub release .deb, all arches)
     - ehacking-deploy   # clone + run the offline stack, trust the step-ca root
     - vscode
-
-  tasks:
-    - name: Install bruno REST client (only available on x86)
-      include_role:
-        name: bruno
-      when: ansible_architecture == 'x86_64'
-      tags: bruno

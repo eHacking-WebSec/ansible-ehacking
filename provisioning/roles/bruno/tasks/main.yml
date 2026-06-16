@@ -1,39 +1,33 @@
-- name: Install Bruno Snap
-  snap:
-    name:
-      - bruno
+---
+# Bruno publishes no arm64 apt repo and its snap is amd64-only, so install the
+# native .deb straight from GitHub releases — one path for every arch. Revisit
+# (back to an apt repo) once usebruno ships an arm64 one.
+- name: bruno - Map host arch to the release asset token
+  ansible.builtin.set_fact:
+    bruno_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
   tags: bruno
-  when: snap_check.rc == 0
 
-# apt fallback only (snap is preferred). `apt_key` was removed on 26.04, so
-# fetch the signing key into a keyring and reference it via signed-by.
-- name: bruno - Fetch signing key into keyring
-  ansible.builtin.command:
-    cmd: gpg --batch --no-default-keyring --keyring /etc/apt/keyrings/bruno.gpg --keyserver keyserver.ubuntu.com --recv-keys 9FA6017ECABE0266
-    creates: /etc/apt/keyrings/bruno.gpg
+- name: bruno - Look up the latest GitHub release
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/usebruno/bruno/releases/latest
+  register: bruno_release
+  changed_when: false
   tags: bruno
-  when: snap_check.rc != 0
 
-- name: bruno - Add apt repository
-  ansible.builtin.apt_repository:
-    repo: "deb [signed-by=/etc/apt/keyrings/bruno.gpg] http://debian.usebruno.com/ bruno stable"
+- name: bruno - Select the .deb asset for this arch
+  ansible.builtin.set_fact:
+    bruno_deb: "{{ bruno_release.json.assets | selectattr('name', 'search', '_' ~ bruno_arch ~ '_linux\\.deb$') | first }}"
+  tags: bruno
+
+- name: bruno - Download the .deb
+  ansible.builtin.get_url:
+    url: "{{ bruno_deb.browser_download_url }}"
+    dest: "/tmp/{{ bruno_deb.name }}"
+    mode: '0644'
+  tags: bruno
+
+- name: bruno - Install (apt resolves the dependencies)
+  ansible.builtin.apt:
+    deb: "/tmp/{{ bruno_deb.name }}"
     state: present
-    filename: bruno
   tags: bruno
-  when: snap_check.rc != 0
-
-
-- name: bruno - Update apt cache
-  apt:
-    update_cache: yes
-    cache_valid_time: 86400  # One day in seconds
-  tags: bruno
-  when: snap_check.rc != 0
-
-- name: bruno - Install 
-  apt:
-    pkg:
-      - bruno
-    state: latest
-  tags: bruno
-  when: snap_check.rc != 0

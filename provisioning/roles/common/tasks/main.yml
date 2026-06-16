@@ -40,7 +40,7 @@
 - name: Set favorite GNOME apps
   community.general.dconf:
     key: "/org/gnome/shell/favorite-apps"
-    value: "['org.gnome.Terminal.desktop', 'org.gnome.Nautilus.desktop', 'firefox_firefox.desktop', 'chromium_chromium.desktop', 'install4j_18rmkj0-BurpSuiteCommunity.desktop', 'code.desktop']"
+    value: "['org.gnome.Terminal.desktop', 'org.gnome.Nautilus.desktop', 'firefox_firefox.desktop', 'chromium_chromium.desktop', 'install4j_18rmkj0-BurpSuiteCommunity.desktop', 'bruno.desktop', 'code.desktop']"
     state: present
   become: yes
   become_user: "{{ vm_user }}"
