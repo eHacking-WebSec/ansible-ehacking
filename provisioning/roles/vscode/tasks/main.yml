@@ -37,14 +37,3 @@
       - code
     state: latest
   tags: vscode
-
-- name: VScode - Install Plugins
-  become: yes
-  become_user: "{{ vm_user }}"
-  ansible.builtin.command:
-    cmd: >
-      code --install-extension VASubasRaj.flashpost
-      code --install-extension 42Crunch.vscode-openapi
-      code --install-extension petli-full.jq-vscode
-    creates: "{{ vm_user_home }}/.vscode/extensions/extensions.json"
-  tags: vscode
