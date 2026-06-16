@@ -107,11 +107,12 @@
 
 # Direct command, not a notify-handler: the copy above is idempotent (reports
 # "ok" on re-run), so a handler would never fire and the root would stay
-# installed-but-not-activated. update-ca-certificates is itself idempotent.
+# installed-but-not-activated. update-ca-certificates is itself idempotent — it
+# always prints "N added, M removed", so only report changed when N/M are non-zero.
 - name: Refresh the system trust store
   ansible.builtin.command: update-ca-certificates
   register: ehacking_update_ca
-  changed_when: "'added' in ehacking_update_ca.stdout or 'removed' in ehacking_update_ca.stdout"
+  changed_when: ehacking_update_ca.stdout is not search('0 added, 0 removed')
   tags: ehacking-deploy
 
 - name: Also drop the root in the user's Downloads (handy reference)
@@ -177,25 +178,31 @@
   register: ehacking_system_cas
   tags: ehacking-deploy
 
-- name: List CAs already in Chromium's NSS DB
+# Idempotency by certificate, not nickname: NSS stores one entry per cert, so a
+# per-nickname check would re-import (and report changed) every run if the same
+# cert is already trusted under another name. Check the cert is present at all.
+- name: Check which system CAs are already trusted in Chromium's NSS DB
   become: true
   become_user: "{{ vm_user }}"
   ansible.builtin.command:
-    cmd: "certutil -d sql:{{ vm_user_home }}/.pki/nssdb -L"
-  register: ehacking_nss_list
+    cmd: "certutil -d sql:{{ vm_user_home }}/.pki/nssdb -L -a -n {{ item.path | basename | regex_replace('\\.crt$', '') }}"
+  loop: "{{ ehacking_system_cas.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  register: ehacking_nss_present
   changed_when: false
   failed_when: false
   tags: ehacking-deploy
 
-# Nickname = filename stem (e.g. ehacking-ca, burpsuite-ca); skip any already
-# present so re-runs stay idempotent.
-- name: Import each system CA into Chromium's NSS DB
+# Import any CA whose nickname isn't yet in the DB. certutil -A dedupes by cert,
+# so re-adding an already-trusted cert under the same nickname is a safe no-op.
+- name: Import missing system CAs into Chromium's NSS DB
   become: true
   become_user: "{{ vm_user }}"
   ansible.builtin.command:
-    cmd: "certutil -d sql:{{ vm_user_home }}/.pki/nssdb -A -t 'C,,' -n {{ item.path | basename | regex_replace('\\.crt$', '') }} -i {{ item.path }}"
-  loop: "{{ ehacking_system_cas.files }}"
+    cmd: "certutil -d sql:{{ vm_user_home }}/.pki/nssdb -A -t 'C,,' -n {{ item.item.path | basename | regex_replace('\\.crt$', '') }} -i {{ item.item.path }}"
+  loop: "{{ ehacking_nss_present.results }}"
   loop_control:
-    label: "{{ item.path | basename }}"
-  when: (item.path | basename | regex_replace('\\.crt$', '')) not in ehacking_nss_list.stdout
+    label: "{{ item.item.path | basename }}"
+  when: item.rc != 0
   tags: ehacking-deploy
