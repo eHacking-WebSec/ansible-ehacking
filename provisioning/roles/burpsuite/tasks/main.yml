@@ -15,21 +15,31 @@
     state: present
   tags: burpsuite
 
+- name: Check whether Burp is already installed
+  ansible.builtin.stat:
+    path: /usr/local/BurpSuiteCommunity
+  register: burp_installed
+  tags: burpsuite
+
 - name: Download installer (x86_64)
   ansible.builtin.get_url:
     url: "https://portswigger.net/burp/releases/download?product=community{{ version }}&type=linux"
     dest: "/tmp/burp.sh"
     mode: '0640'
+  when:
+    - ansible_facts.architecture == "x86_64"
+    - not burp_installed.stat.exists
   tags: burpsuite
-  when: ansible_facts.architecture == "x86_64"
 
 - name: Download installer (aarch64)
   ansible.builtin.get_url:
     url: "https://portswigger.net/burp/releases/download?product=community{{ version }}&type=linuxArm64"
     dest: "/tmp/burp.sh"
     mode: '0640'
+  when:
+    - ansible_facts.architecture == "aarch64"
+    - not burp_installed.stat.exists
   tags: burpsuite
-  when: ansible_facts.architecture == "aarch64"
 
 - name: Install
   ansible.builtin.command:
@@ -73,19 +83,21 @@
     creates: "{{ vm_user_home }}/Downloads/Burpsuite-CA-certificate.pem"
   tags: burpsuite
 
-- name: Find temporary projects
-  find:
+- name: Find the Burp installer + temp project dirs left in /tmp
+  ansible.builtin.find:
     paths: /tmp
-    patterns: 'burp*.tmp'
-    recurse: yes
-  register: found_items
+    patterns: ['burp*.tmp', 'burp.sh']
+    file_type: any  # the temp projects are directories — the default 'file' misses them
+  register: burp_leftovers
   tags: burpsuite
 
-- name: Clean up the temporary projects
-  file:
+- name: Clean them up
+  ansible.builtin.file:
     path: "{{ item.path }}"
     state: absent
-  loop: "{{ found_items.files }}"
+  loop: "{{ burp_leftovers.files }}"
+  loop_control:
+    label: "{{ item.path }}"
   tags: burpsuite
 
 # Drop Burp's CA into the OS trust store. Must be a *.crt file: update-ca-certificates
