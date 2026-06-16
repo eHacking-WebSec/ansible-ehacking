@@ -20,17 +20,3 @@
     dest: /usr/local/bin/Postman
     state: link
   tags: postman
-
-# - name: Create Application Launcher
-#   ansible.builtin.copy:
-#     src: '{{ config_dir }}/applications/postman.desktop'
-#     remote_src: yes
-#     dest: "{{ item }}"
-#     owner: "{{ vm_user }}"
-#     group: "{{ vm_user_details.group }}"
-#     mode: '0755'
-#   loop:
-#     - "{{ vm_user_details.home }}/Desktop/"
-#     - "{{ vm_user_details.home }}/.local/share/applications/"
-#   notify: trust desktop files
-#   tags: postman
