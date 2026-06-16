@@ -20,7 +20,6 @@
 - name: Install probably missing packages
   apt:
     pkg:
-      - apache2
       - dbus-x11
       - fish
       - fzf
@@ -30,7 +29,6 @@
       - python3-psutil
       - ripgrep
       - thunderbird
-      - tldr
       - tmux
       - wget
       - vim
@@ -95,8 +93,7 @@
 - name: Create {{ vm_user }} user
   ansible.builtin.user:
     name: "{{ vm_user }}"
-    # password: '$6$MCGNSn5FNKeOmOiT$RnFNfpslJK9Zaz2W2tWw/.Q/B1mFcA.7VMjlQMXZPvh7ar6rGSKE17FehHe3O./6cZioAyIgxC37B3j7giaXJ0' # kali
-    password: '$y$j9T$uAIifobKZjHeqFcw180Jb/$tH3ayhWbuHmxybbyP/AaDY/1X5PiqxvoG0ruT6ExH40' # student
+    password: "{{ vm_user_password }}"
     comment: "{{ vm_user }} (Default for eHacking)"
     groups: sudo
     shell: /usr/bin/bash
