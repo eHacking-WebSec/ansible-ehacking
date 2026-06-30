@@ -1,7 +1,7 @@
 ---
 # Deploy the eHacking offline stack onto a host that already has rootless Podman
 # (see the container-runtime role): clone the local-docker-setup, bring it up via
-# a systemd --user unit (so it also autostarts on login), and trust the step-ca
+# a systemd --user unit (so it also autostarts on login), and trust the CA
 # root system-wide + in Firefox/Chromium.
 
 - name: Resolve clone dir (defaults to <home>/.hidden)
@@ -83,10 +83,10 @@
     XDG_RUNTIME_DIR: "/run/user/{{ vm_user_uid }}"
   tags: ehacking-deploy
 
-# --- Trust the step-ca root -------------------------------------------------
+# --- Trust the CA root ------------------------------------------------------
 # ca-server (nginx sidecar) publishes the root over plain HTTP; poll until it
 # answers, then install — runtime-agnostic, no `docker exec`.
-- name: Wait for the step-ca root to be served
+- name: Wait for the CA root to be served
   ansible.builtin.uri:
     url: "{{ ehacking_ca_url }}"
     return_content: true
@@ -96,7 +96,7 @@
   delay: 5
   tags: ehacking-deploy
 
-- name: Install the step-ca root into the system trust store
+- name: Install the CA root into the system trust store
   ansible.builtin.copy:
     content: "{{ ehacking_ca_probe.content }}"
     dest: /usr/local/share/ca-certificates/ehacking-ca.crt

@@ -63,5 +63,5 @@
     - chromium
     - burpsuite
     - bruno             # API client (GitHub release .deb, all arches)
-    - ehacking-deploy   # clone + run the offline stack, trust the step-ca root
+    - ehacking-deploy   # clone + run the offline stack, trust the CA root
     - vscode

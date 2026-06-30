@@ -101,10 +101,9 @@
   tags: burpsuite
 
 # Drop Burp's CA into the OS trust store. Must be a *.crt file: update-ca-certificates
-# only reads .crt, and ehacking-deploy globs the same extension to import every CA
-# (step-ca root + Burp) into Chromium's NSS DB; Firefox picks them up via the
-# enterprise-roots policy. update-ca-certificates is the only notify (the old
-# per-profile firefox/chromium cert handlers are gone).
+# only reads .crt, and ehacking-deploy globs that same dir to trust every CA (the
+# eHacking CA root + Burp) in Chromium (CACertificates policy) and Firefox (profile
+# NSS DB). The copy notifies update-ca-certificates to refresh the OS store.
 - name: Copy Burp's CA into the system trust store (as .crt)
   ansible.builtin.copy:
     src: "{{ vm_user_home }}/Downloads/Burpsuite-CA-certificate.pem"
