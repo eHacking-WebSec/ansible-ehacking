@@ -8,6 +8,7 @@ Wants=podman.socket
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory={{ ehacking_dir }}
+ExecStartPre={{ ehacking_dir }}/bin/make-flags.sh
 ExecStart={{ ehacking_dir }}/bin/compose up -d
 ExecStop={{ ehacking_dir }}/bin/compose down
 
